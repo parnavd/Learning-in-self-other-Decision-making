@@ -1,0 +1,65 @@
+---
+title: "warm_up7_Associations"
+author: "Paris.N"
+date: "11/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(correlation)
+library(GGally) 
+library(here) 
+library(tidyverse) 
+library(WRS2)
+
+liar_tib <- here::here("data/biggest_liar.csv") %>% readr::read_csv()
+exam_tib <- here::here("data/exam_anxiety.csv") %>% readr::read_csv()
+
+liar_tib <- liar_tib %>% 
+  dplyr::mutate(
+    novice = forcats::as_factor(novice)
+  )
+
+exam_tib <- exam_tib %>%
+  dplyr::mutate(
+    id = forcats::as_factor(id),
+    sex = forcats::as_factor(sex)
+  )
+exam_tib
+```
+
+```{r}
+GGally::ggscatmat(exam_tib, columns = c("exam_grade", "revise", "anxiety"))
+```
+
+```{r}
+exam_tib %>% 
+  dplyr::select(exam_grade, anxiety) %>% 
+  correlation::correlation()
+exam_tib %>% 
+  dplyr::select(exam_grade, revise, anxiety) %>% 
+  correlation::correlation()
+```
+
+```{r}
+# Robust correlation coefficients
+exam_tib %>% 
+  dplyr::select(exam_grade, revise, anxiety) %>% 
+  correlation::correlation(method = "percentage")
+```
+
+```{r}
+#Spearman’s Correlation Coefficient
+# The plot with theme_minimal() applied
+
+GGally::ggscatmat(liar_tib, columns = c("creativity", "position")) +
+  theme_minimal()
+liar_tib %>%
+  dplyr::select(position, creativity) %>% 
+  correlation::correlation(method = "spearman")
+```
+

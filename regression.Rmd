@@ -1,0 +1,632 @@
+---
+title: "regression"
+author: "Paris.N"
+date: "11/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#1-libraries
+library(tidyverse)
+library(kableExtra)
+library(R.matlab)
+library(data.table)
+library(formattable)
+library(webshot)
+library(here)
+library(qqplotr)
+make_z <- function(x){        #Using a function to compute z
+  (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
+}
+```
+
+```{r}
+#2-data frame for _____"SELF"_____ stay probability
+
+#---------------------------------------------------------- define the variables
+num_sub <- 37
+subject_id <-  
+  c(1,2,3,4,5,6,7,8,9,10,
+    11,12,13,14,15,16,17,18,19,20,
+    21,22,23,25,26,27,28,29,30,
+    31,32,33,34,35,36,37,38)
+pre_self <- "my_data/subject_"
+sum_max_att <- list()
+sum_reward <- list()
+accuracy <- list()
+num_choice <- list()
+performance <- list()
+mb_index <- list()
+mf_index <- list()
+p.value_mb <- list()
+p.value_mf <- list()
+reg_data <- tibble::tibble()
+predictors.self  <-  data.frame(
+                             stay_choice = character(), 
+                             outcome = double(), 
+                             outcome_diff = double()
+)
+index_data <- data.frame(id = integer(),
+                       performance = double(),
+                       max_reward = double(),
+                       accuracy = double(),
+                       mb_index = double(),
+                       p.value_mb = double(),
+                       mf_index = double(),
+                       p.value_mf = double()
+)
+
+#-------------------------------------------------------------------------- Loop
+for (n in 1:num_sub){
+  sub <- subject_id[n]
+  #dir self
+  dir_self <- paste(pre_self, sub,"/data.mat", sep ="")
+  subject <- readMat(dir_self)
+  #choice self
+  ch <- subject$data[, , 1]$choice
+  ind_choice <- which(ch!=0)
+  choice <- ch[ind_choice]
+  len <- length(choice)
+  len_1 <- length(choice)-1
+  #reward self
+  rew <- subject$data[, , 1]$reward
+  reward <- rew[ind_choice]
+  new_reward <-reward[1:len_1]
+  #reward probs
+  reward_probs <- subject$data[, , 1]$rewardProbs
+  first_column  <-  reward_probs[ind_choice,,1][,1]
+  second_column  <-  reward_probs[ind_choice,,2][,1]
+  column <- list(first_column, second_column)
+  rew_prob_dif <- vector("numeric", length = len_1)
+  #state
+  st <- subject$data[, , 1]$state1
+  state <- st[ind_choice]
+  #stay self
+  which_stay <- character()
+  stay <- (choice[1:(length(choice)-1)]) == choice[2:len]
+  #transition
+  trans_logic <- as.numeric(state[1:len_1] == state[2:len])
+  trans <- vector("numeric", length = len_1)
+  ind_f <- which(trans_logic == FALSE)
+  ind_t <- which(trans_logic == TRUE)
+  trans[ind_f] <- 1
+  trans[ind_t] <- 2
+  sam.rew <- trans * new_reward
+  #stay self
+  stay_logic <- as.numeric(stay)
+  for (j in 1: len_1){                           
+    if (stay[j] == TRUE){
+      which_stay[j] = "stay"
+    }
+    else{
+      which_stay[j] = "no_stay"
+    }
+  }
+  
+  max_rew  <-  0 #--------------------------------------------------- max reward
+  acc <- 0
+  ch_num <- 0
+  max_att <- list()
+  for(z in 1:len){
+    if(first_column[z] >= second_column[z]){
+      max_rew = first_column[z]
+    }
+    else{
+      max_rew = second_column[z]
+    }
+      
+    if (max_rew == reward[z]){#---------------------------------------- accuracy
+      acc = acc + 1
+    }
+    if(choice[z] > 0){
+      ch_num = ch_num + 1
+    }
+    max_att[z] <- max_rew
+    
+    if(choice[z] == 1){#-----differences between chosen & not chosen reward prob
+      rew_prob_dif[z] = 
+        reward_probs[,,1][z,1] - reward_probs[,,2][z,1]
+    }
+    else if (choice[z] == 2){
+      rew_prob_dif[z] = 
+        reward_probs[,,2][z,1] - reward_probs[,,1][z,1]
+    }
+  }
+  sum_max_att[n] <- round(sum(unlist(max_att)), digits = 3)
+  sum_reward[n] <- sum(reward[1:len_1])
+  num_choice[n] <- ch_num
+  accuracy[n] <- round(acc / ch_num, digit = 3)
+  performance[n] <-  round(unlist(sum_reward[n]) / unlist(sum_max_att[n]), digits = 3)
+  # predictors' data frame 
+  predictors.self <- data.frame(
+                             stay_choice = which_stay, 
+                             outcome = new_reward,
+                             outcome_diff = rew_prob_dif[1:len_1]
+  )
+  stay_choice = as.factor(which_stay)
+  outcome = round(new_reward, digits = 3)
+  outcome_diff = round(rew_prob_dif[1:len_1], digits = 3)
+  same_rew <- round(sam.rew, digits = 3)
+  id <- rep(n, 8)
+  # predictors' table
+  data_tib <- tibble::tibble(
+                             stay_logic,    
+                             outcome,         
+                             trans_logic,     
+                             outcome_diff     
+  )
+  # logistic regression
+  santa_full_glm <- glm(stay_logic            #outcome 
+                        ~ outcome             #predictor
+                        * trans_logic         #predictor
+                        * outcome_diff,       #predictor
+                        data = data_tib,      #data
+                        family = binomial())  #logistic regression
+  # regression summary
+  sum_reg <- data.frame(broom::tidy(santa_full_glm, conf.int = TRUE))
+  mb_index[n]  <-  round(sum_reg[["estimate"]][2], digits = 3) #MB_index
+  p.value_mb[n] <-  round(sum_reg[["p.value"]][2], digits = 3)
+  mf_index[n]  <-  round(sum_reg[["estimate"]][5], digits = 3) #MF_index
+  p.value_mf[n]  <-  round(sum_reg[["p.value"]][5], digits = 3)
+  #making a data frame of mb/mf indexes and ...
+  my_data <- data.frame(id = sub,            
+                        performance = performance[n],
+                        max_reward = sum_max_att[n],
+                        accuracy = accuracy[n],
+                        mb_index = mb_index[n],
+                        p.value_mb =  p.value_mb[n],
+                        mf_index = mf_index[n],
+                        p.value_mf = p.value_mf[n]
+  )
+  reg_data <- rbind(sum_reg, reg_data)
+  nRow  <-  nrow(index_data)
+  index_data[nRow + 1, ] <- my_data
+}
+#----------------------------------------------------------------showing results
+index_data
+# --------------------------------------------------------------------- Outliers
+
+dat_tib <-  tibble::tibble(id = subject_id,
+                           performance = unlist(performance), 
+                           mb_index = unlist(mb_index), 
+                           mf_index = unlist(mf_index))
+
+dat_tib_z <- dat_tib %>% 
+  dplyr::mutate(
+    performance_z = make_z(dat_tib$performance),
+    mb_index_z = make_z(dat_tib$mb_index),
+    mf_index_z = make_z(dat_tib$mf_index)
+  
+  )
+#Using standardized scores to detect outliers  
+dat_tib_z %>% 
+  dplyr::filter_at(
+    vars(performance_z:mf_index_z),
+    any_vars(. >= 2.58)
+    )
+#normality
+
+ggplot2::ggplot(dat_tib, aes(sample = performance)) +
+  qqplotr::stat_qq_band(fill = "#5c97bf", alpha = 0.3) +
+  qqplotr::stat_qq_line(colour = "#5c97bf") +
+  qqplotr::stat_qq_point(alpha = 0.2, size = 1) +
+  labs(x = "Theoretical quantiles", y = "Sample quantiles") +
+  theme_minimal()
+```
+
+```{r}
+sum_reg[["estimate"]][6]
+```
+
+```{r}
+#3-data frame for _____"OTHER"_____ stay probability
+#------------------------------------------------------------------------------ define variables
+num_sub <- 37
+subject_id  <-  
+  c(1,2,3,4,5,6,7,8,9,10,
+    11,12,13,14,15,16,17,18,19,20,
+    21,22,23,25,26,27,28,29,30,
+    31,32,33,34,35,36,37,38)
+pre_other <- "my_data/subjectO_"
+sum_max_att_O <- list()
+sum_reward_O <- list()
+accuracy_O <- list()
+num_choice_O <- list()
+performance_O <- list()
+mb_index_O <- list()
+mf_index_O <- list()
+p.value_mb_O <- list()
+p.value_mf_O <- list()
+reg_data_O <- tibble::tibble()
+predictors.other  <-  data.frame(
+                             stay_choice = character(), 
+                             outcome = double(), 
+                             outcome_diff = double()
+)
+index_data_O <- data.frame(id = integer(),
+                       performance = double(),
+                       max_reward = double(),
+                       accuracy = double(),
+                       mb_index = double(),
+                       p.value_mb = double(),
+                       mf_index = double(),
+                       p.value_mf = double()
+)
+
+#------------------------------------------------------------------------------- Loop
+for (n in 1:num_sub){
+  sub <- subject_id[n]
+  #dir other
+  dir_other_O <- paste(pre_other,n,"/data.mat", sep ="")
+  subject_O <- readMat(dir_other_O)
+  #choice other
+  ch <- subject_O$data[, , 1]$choice
+  ind_choice <- which(ch!=0)
+  choice <- ch[ind_choice]
+  len <- length(choice)
+  len_1 <- length(choice)-1
+  #reward other
+  rew <- subject_O$data[, , 1]$reward
+  reward <- rew[ind_choice]
+  new_reward <-reward[1:len_1]
+  #reward probs
+  reward_probs <- subject_O$data[, , 1]$rewardProbs
+  first_column  <-  reward_probs[ind_choice,,1][,1]
+  second_column  <-  reward_probs[ind_choice,,2][,1]
+  column <- list(first_column, second_column)
+  rew_prob_dif <- vector("numeric", length = len_1)
+  #state
+  st <- subject_O$data[, , 1]$state1
+  state <- st[ind_choice]
+  #stay other
+  which_stay <- character()
+  stay <- (choice[1:(length(choice)-1)]) == choice[2:len]
+  #transition
+  trans_logic <- as.numeric(state[1:len_1] == state[2:len])
+  trans <- vector("numeric", length = len_1)
+  ind_f <- which(trans_logic == FALSE)
+  ind_t <- which(trans_logic == TRUE)
+  trans[ind_f] <- 1
+  trans[ind_t] <- 2
+  sam.rew <- trans * new_reward
+  #stay other
+  stay_logic <- as.numeric(stay)
+  for (j in 1: len_1){                           
+    if (stay[j] == TRUE){
+      which_stay[j] = "stay"
+    }
+    else{
+      which_stay[j] = "no_stay"
+    }
+  }
+  
+  max_rew  <- 0 #---------------------------------------------------- max reward
+  acc <- 0
+  ch_num <- 0
+  max_att <- list()
+  ch_n <- list()
+  for(z in 1:len){
+    if(first_column[z] >= second_column[z]){
+      max_rew = first_column[z]
+    }
+    else{
+      max_rew = second_column[z]
+    }
+      
+    if (max_rew == reward[z]){#------------------------------------ # accuracy_O
+      acc = acc + 1
+    }
+    if(choice[z] > 0){
+      ch_num = ch_num + 1
+    }
+    max_att[z] <- max_rew
+    
+    if(choice[z] == 1){#-----differences between chosen & not chosen reward prob
+      rew_prob_dif[z] = 
+        reward_probs[,,1][z,1] - reward_probs[,,2][z,1]
+    }
+    else if (choice[z] == 2){
+      rew_prob_dif[z] = 
+        reward_probs[,,2][z,1] - reward_probs[,,1][z,1]
+    }
+  }
+  sum_max_att_O[n] <- round(sum(unlist(max_att)), digits = 3)
+  sum_reward_O[n] <- sum(reward[1:len_1])
+  num_choice_O[n] <- ch_num
+  accuracy_O[n] <- round(acc / ch_num, digit = 3)
+  performance_O[n] <-  round(unlist(sum_reward_O[n]) / unlist(sum_max_att_O[n]), digits = 3)
+  # predictors' data frame 
+  predictors.other <- data.frame(
+                             stay_choice = which_stay, 
+                             outcome = new_reward,
+                             outcome_diff = rew_prob_dif[1:len_1]
+  )
+  stay_choice = as.factor(which_stay)
+  outcome = round(new_reward, digits = 3)
+  outcome_diff = round(rew_prob_dif[1:len_1], digits = 3)
+  same_rew <- round(sam.rew, digits = 3)
+  id <- rep(n, 8)
+  # predictors' table
+  data_tib_O <- tibble::tibble(
+                             stay_choice,  
+                             outcome,       
+                             trans_logic,   
+                             outcome_diff  
+  )
+  # logistic regression
+  santa_full_glm_O <- glm(stay_logic          #outcome 
+                        ~ outcome             #predictor
+                        * trans_logic         #predictor
+                        * outcome_diff,       #predictor
+                        data = data_tib_O,    #data
+                        family = binomial())  #logistic regression
+  # regression summary
+  sum_reg_O <- data.frame(broom::tidy(santa_full_glm_O, conf.int = TRUE))
+  mb_index_O[n] <-  round(sum_reg_O[["estimate"]][2], digits = 3)        #MB_index
+  p.value_mb_O[n] <-  round(sum_reg_O[["p.value"]][2], digits = 3)
+  mf_index_O[n] <-  round(sum_reg_O[["estimate"]][5], digits = 3)        #MF_index
+  p.value_mf_O[n] <-  round(sum_reg_O[["p.value"]][5], digits = 3)
+   #making a data frame of mb/mf indexes and ...
+  my_data_O <- data.frame(id = sub,         
+                         performance = performance_O[n],
+                         max_reward = sum_max_att_O[n],
+                         accuracy = accuracy_O[n],
+                         mb_index = mb_index_O[n],
+                         p.value_mb =  p.value_mb_O[n],
+                         mf_index = mf_index_O[n],
+                         p.value_mf = p.value_mf_O[n]
+                         )
+  reg_data_O <- rbind(sum_reg_O, reg_data_O)
+  nRow <-  nrow(index_data_O)
+  index_data_O[nRow + 1, ] <- my_data_O
+}
+#------------------------------------------------------------------------------- result
+index_data_O
+#---------------------------------------------------------------------- Outliers
+
+dat_tib_O <-  tibble::tibble(id = subject_id,
+                           performance = unlist(performance), 
+                           mb_index = unlist(mb_index_O), 
+                           mf_index = unlist(mf_index_O))
+
+dat_tib_O <- dat_tib_O %>% 
+  dplyr::mutate(
+    performance_z = make_z(dat_tib_O$performance),
+    mb_index_z = make_z(dat_tib_O$mb_index),
+    mf_index_z = make_z(dat_tib_O$mf_index)
+    
+  )
+#Using standardized scores to detect outliers  
+dat_tib_O %>% 
+  dplyr::filter_at(
+    vars(performance_z:mf_index_z),
+    any_vars(. >= 2.58)
+  )
+```
+
+```{r}
+#summarizing data
+dat_tib_O %>%
+  dplyr::summarise(
+    median =  median(performance),
+    mean =  mean(performance),
+    IQR = IQR(performance),
+    variance = var(performance),
+    std_dev = sd(performance)
+    ) %>%
+    round(., 2)
+```
+
+```{r}
+# Associations--------------------------------------------- SELF
+my_plot <- GGally::ggscatmat(index_data_O, columns = c("accuracy", "mb_index", "mf_index" )) + 
+  theme_minimal()
+#save plot
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/Association_acc_other.png',
+       my_plot, device = "png", width = 10, height = 7, dpi = 300)
+#Pearson’s correlation 
+index_data_O %>%
+  dplyr::select(accuracy, mb_index, mf_index) %>%
+  correlation::correlation()
+# Associations--------------------------------------------- OTHER
+my_plot <- GGally::ggscatmat(index_data_O, columns = c("accuracy", "mb_index", "mf_index" )) + 
+  theme_minimal()
+#save plot
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/Association_other.png',
+       my_plot, device = "png", width = 10, height = 7, dpi = 300)
+#Pearson’s correlation 
+index_data_O %>%
+  dplyr::select(accuracy, mb_index, mf_index) %>%
+  correlation::correlation(method = "percentage")
+#pool---------------------------------------------------------------------------
+#data
+max_dat <- data.frame(id = c(index_data$id, index_data_O$id),
+                      max_rew = c(index_data$max_reward, index_data_O$max_reward),
+                      accuracy = c(index_data$accuracy, index_data_O$accuracy),
+                      performance = c(index_data$performance, index_data_O$performance)
+)
+#plot
+my_plot <- ggplot2::ggplot(index_data_O, aes(mb_index, accuracy)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "mb index", y = "Accuracy") + #Maximum Attainable Reward
+  theme_minimal()
+#save plot
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/mb_acc_O.png',
+       my_plot, device = "png", width = 10, height = 7, dpi = 300)
+#regression
+max_lm <- lm(performance ~ mb_index, data = index_data) 
+summary(max_lm)
+#Pearson’s correlation 
+max_dat %>%
+  dplyr::select(accuracy, max_rew) %>%
+  correlation::correlation(method = "percentage")
+
+```
+
+```{r}
+# t.test -----------------------------------------------------------------------
+mb_index <- unlist(mb_index)                               # ---------------- MB
+mb_index_O <- unlist(mb_index_O)
+res_MB <- t.test(mb_index, mb_index_O, paired = TRUE)
+res_MB
+mf_index <- unlist(mf_index)                               # ---------------- MF
+mf_index_O <- unlist(mf_index_O)
+res_MF <- t.test(mf_index, mf_index_O, paired = TRUE)
+res_MF
+```
+
+```{r}
+#GLM
+perf_lm <- lm(performance ~ mb_index, data = index_data_O, na.action = na.exclude)
+#Extracting model information with summary()
+summary(perf_lm)
+#Overall fit of the model`
+broom::glance(perf_lm)
+#Model parameters (1)
+broom::tidy(perf_lm, conf.int = TRUE)
+```
+#Overall fit of the model(1)
+ R squared: Mb index accounts for 21.3% of the variation in performance.
+adding the predictor of Mb index significantly improved the fit of the model to the data compared to having no predictors in the model, F(1, 35) = 99.58, p < .004. In other words, adding Mb index as a predictor significantly improved the model fit.
+#Model parameters (1)
+for an increase in Mb index of 1 unit the model predicts 3.2 (0.0032 × 1000 = 3.2) extra performance.  
+t-test (labelled statistic) and associated p-value tell us whether the b-value is significantly different from 0.
+Looking at the 95% confidence interval for Mb index (reproduced above), if our sample is one of the 95% producing confidence intervals that contain the population value then the confidence interval tells us that the population value of b for performance is likely to fall between 0.001 and 0.005 and because this interval doesn’t include zero we might conclude that there is a genuine positive relationship between Mb index and performance in the population.
+```{r}
+index_tib <- tibble::tibble( 
+                id = rep(subject_id,2),
+                group = as.factor(rep(c("self", "other"), each = num_sub)),
+                perf = unlist(c(performance,  performance_O)),
+                mb_mf = c(unlist(mb_index) - unlist(mf_index), unlist(mb_index_O) - unlist(mf_index_O))
+                )
+index_tib
+
+```
+
+```{r}
+#bar plot
+bar_tib <- tibble::tibble( 
+                id = rep(subject_id,4),
+                group = as.factor(rep(c("self", "other", "self", "other"), each = num_sub)),
+                strategy = as.factor(rep(c("mb", "mf"), each = num_sub *2)),
+                index = unlist(c(mb_index, mb_index_O, mf_index, mf_index_O))
+                )
+bar <- ggplot(bar_tib, aes(strategy, index, fill = group))
+#plot
+bar + stat_summary(fun = mean, geom = "bar", position = "dodge") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", position = position_dodge(width = 0.9), width = 0.1) +
+  labs(x = "Strategy", y = "mb & mf index", fill = "Group") + 
+  geom_point(aes(y=index, group = group),
+             stat = "identity",
+             position = position_dodge(width = 0.9),
+             alpha = .2,
+             size =3) + 
+  theme_minimal()
+lines(strategy[order(strategy)], index[order(strategy)], xlim=range(strategy), ylim=range(index), pch=16)
+```
+
+```{r}
+
+# R allows a shortcut for the prior definition
+m1 <- lm( perf ~ mb_mf * group, data=index_tib ) #multiple regression
+m1 <- aov(perf ~ mb_mf * group, data=index_tib)  #ANCOVA
+summary(m1)
+broom::glance(m1)
+broom::tidy(m1, conf.int = TRUE)
+#comparing 2 models : first remove outcome diff from everywhere
+m2 <- lm( perf ~ mb_mf * group, data=index_tib )
+anova(m1, m2) %>% broom::tidy()
+# save the fit, lwr, upr values for each observation
+# these are the yhat and CI 
+# If columns for fit, upr, lwr are already present, remove them
+index_tib <- index_tib %>%
+  dplyr::select( -matches('fit'), -matches('lwr'), -matches('upr') ) %>%
+  cbind( predict(m1, interval='conf') )
+# Make a nice plot that includes the regression line.
+ggplot(index_tib, aes(x = mb_mf, col = group, fill = group)) + 
+      geom_ribbon(aes(ymin = lwr, ymax = upr),
+                  alpha=.3) +   # how solid the layer is
+      geom_point(aes(y = perf)) +
+      geom_line(aes(y = fit)) + 
+  theme_minimal()
+
+ggplot2::ggplot(index_tib, aes(mb_mf, perf, colour = group)) +
+  geom_point() +
+  geom_smooth(method = "lm", aes(fill = group), alpha = 0.1) +
+  labs(x = "mb_mf", y = "performance", colour = "Group", fill = "Group") +
+  theme_minimal()
+#Plotting the interaction
+my_plot <- interactions::interact_plot(m1, pred = mb_mf, modx = group) +
+  labs(x = "mb - mf index", y = "Performance", fill = "Group") +
+  theme_minimal()
+#save plot
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/multi_reg_perf.png',
+       my_plot, device = "png", width = 10, height = 7, dpi = 300)
+```
+
+```{r}
+#### The beast of bias (2)
+#look at whether the model we have just fitted is biased. 
+plot(m1, which = c(1:6))
+#or
+ggplot2:: autoplot(m1,
+                   which = c(1:6),
+                   colour = "#5c97bf",
+                   smooth.colour = "#ef4836",
+                   alpha = 0.5,
+                   size = 1) + 
+  theme_minimal()
+```
+
+```{r}
+#Exploring the data 
+index_tib %>%
+  dplyr::group_by(group) %>%
+  dplyr::summarize(
+    mean = mean(perf, na.rm = TRUE),
+    `95% CI lower` = mean_cl_normal(perf)$ymin,
+    `95% CI upper` = mean_cl_normal(perf)$ymax
+  )
+```
+
+```{r}
+# model:multiple regression
+fit_model <- lm(perf ~ mb_mf * group, data = index_tib) %>% 
+  broom::tidy(., conf.int = TRUE)
+#Plotting interactions
+library("interactions")
+interact_plot(fit_model, pred = mb_mf, modx = group)
+```
+
+```{r}
+perf_lm <- lm(perf ~ group, data = index_tib) 
+anova(perf_lm)
+#The main effect of group is not significant, F(1, 72) = 3.46, p = 0.067, which shows that the average level of performance was (statistically speaking) the same in the two groups self/other. 
+#In other words, the means for performances are not significantly different across the self and other groups. This result is good news for using performance as a covariate to adjust the means in the model.
+```
+
+```{r}
+#regressed out
+reg_out_data <- tibble::tibble( 
+                id = rep(subject_id,2),
+                group = as.factor(rep(c("self", "other"), each = num_sub)),
+                perf = unlist(c(performance,  performance_O)),
+                acc = unlist(c(accuracy, accuracy_O)),
+                max_reward = c(unlist(sum_max_att), unlist(sum_max_att_O)),
+                mf_index = c (unlist(mf_index), unlist(mf_index_O)),
+                mb_index = c (unlist(mb_index), unlist(mb_index_O))
+)
+
+reg_out_lm <- lm(perf ~ max_reward * group, data = reg_out_data)
+broom::tidy(reg_out_lm, conf.int = TRUE)
+```
+
+```{r}
+
+```
+

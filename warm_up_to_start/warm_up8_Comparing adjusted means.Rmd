@@ -1,0 +1,55 @@
+---
+title: "warm_up8_Comparing adjusted means (GLM 2)"
+author: "Paris.N"
+date: "11/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(broom)
+library(effectsize)
+library(here)
+library(modelbased)
+library(parameters)
+library(sandwich)
+library(tidyverse)
+
+pupluv_tib <- here::here("data/puppy_love.csv") %>%
+  readr::read_csv() %>%
+  dplyr::mutate(
+    dose = forcats::as_factor(dose)
+  )
+cure_tib <- here::here("data/hangover.csv") %>%
+  readr::read_csv() %>%
+  dplyr::mutate(
+    drink = forcats::as_factor(drink) %>% forcats::fct_relevel(., "Water", "Lucozade", "Cola")
+  )
+```
+
+```{r}
+# Exploring the data 
+pupluv_tib %>% 
+  dplyr::group_by(dose) %>% 
+  dplyr::summarize(
+    mean = mean(happiness, na.rm = TRUE),
+    `95% CI lower` = mean_cl_normal(happiness)$ymin,
+    `95% CI upper` = mean_cl_normal(happiness)$ymax
+  )
+```
+
+```{r}
+# Solution:
+lm(happiness ~ puppy_love + dose, data = pupluv_tib) %>% 
+  broom::tidy(., conf.int = TRUE)
+```
+
+```{r}
+
+luvdose_lm <- lm(puppy_love ~ dose, data = pupluv_tib) 
+anova(luvdose_lm)
+```
+

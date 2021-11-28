@@ -1,0 +1,425 @@
+---
+title: "Stay_prob_Anova"
+author: "Paris.N"
+date: "10/29/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#1-libraries
+library(tidyverse)
+library(broom)
+library(knitr)
+library(kableExtra)
+library(R.matlab)
+library(data.table)
+library(formattable)
+library(webshot)
+library(here)
+make_z <- function(x){        #Using a function to compute z for outliers
+  (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
+}
+```
+
+```{r}
+#2-data frame for "SELF" stay probability
+
+num_sub <- 38
+pre_self <- "my_data/subject_"
+stay_mat_self <- matrix(nrow = num_sub, ncol = 4)
+stay.data.frame.self = data.frame(id = integer(),
+                             stay_prob = double(), 
+                             stimulus = character(), 
+                             outcome_valence = character(), 
+                             beneficiary = character())
+for (n in 1:num_sub){
+  #dir self
+  dir_self <- paste(pre_self,n,"/data.mat", sep ="") 
+  subject <- readMat(dir_self)
+  #choice self
+  ch <- subject$data[, , 1]$choice
+  ind_choice <- which(ch!=0)
+  choice <- ch[ind_choice]
+  len <- length(choice)
+  len_1 <- length(choice)-1
+  #reward self
+  rew <- subject$data[, , 1]$reward
+  reward <- rew[ind_choice]
+  new_reward <-reward[1:len]
+  #state
+  st <- subject$data[, , 1]$state1
+  state <- st[ind_choice]
+  #stay self
+  stay <- (choice[1:(length(choice)-1)]) == choice[2:len]
+  #transition
+  trans <- (state[1:(length(state)-1)]) == state[2:len]
+  #calculating stay prob self
+  a <- 0 ; b <- 0 ; c <- 0 ; d <- 0 ; w=0 ; y=0 ; x=0 ; z=0
+  for(i in 1:len_1){
+    if (reward[i] > 0.5){
+      new_reward[i] = 2 #outcome = reward : 
+      #a number between 0 to 5 showed to subject
+    } else{
+      new_reward[i] = 1 #outcome = punishment : 
+      #a number between -1 to -4 showed to subject
+    }
+    if (trans[i] == TRUE && new_reward[i] == 2){ #same_reward : 
+      #the previous options were showed to subject from which subject received 
+      #the reward in the previous trial.
+      if (stay[i] == TRUE){ # : the subject repeat the previous choice 
+        a = a + 1
+        w = w + 1
+      }
+      else{
+        a = a + 1
+      }
+    }
+    else if (trans[i] == TRUE && new_reward[i] == 1){ #same_punishment
+      if (stay[i] == TRUE){
+        b = b + 1
+        x= x + 1
+      }
+      else {
+        b = b + 1
+      }
+    }
+    else if (trans[i] == FALSE && new_reward[i] == 2){ #different_reward
+      if (stay[i] == TRUE){
+        c = c + 1
+        y = y + 1
+      }
+      else {
+        c = c + 1
+      }
+    }
+    else if (trans[i] == FALSE && new_reward[i] == 1){ #different_punishment
+      if (stay[i] == TRUE){
+        d = d + 1
+        z = z + 1
+      }
+      else {
+        d = d + 1
+      }
+    }
+  }
+  # creating data.frame
+  same_rew <- data.frame(id = n, 
+                         stay_prob = round((w / a),digits = 3), 
+                         stimulus = "same", 
+                         outcome_valence = "reward", 
+                         beneficiary = "self")
+  same_punish <- data.frame(n, 
+                            stay_prob = round((x / b),digits = 3), 
+                            stimulus = "same", 
+                            outcome_valence = "punishment", 
+                            beneficiary = "self")
+  same_rew[nrow(same_rew) + 1, ] <- same_punish
+  diff_rew  <- data.frame(n, 
+                          stay_prob = round((y / c),digits = 3), 
+                          stimulus = "different", 
+                          outcome_valence = "reward", 
+                          beneficiary = "self")
+  same_rew[nrow(same_rew) + 1, ] <- diff_rew
+  diff_punish <- data.frame(n, 
+                            stay_prob = round((z / d),digits = 3), 
+                            stimulus = "different", 
+                            outcome_valence = "punishment", 
+                            beneficiary = "self")
+  same_rew[nrow(same_rew) + 1, ] <- diff_punish
+  nRow  <-  nrow(stay.data.frame.self)
+  stay.data.frame.self[(nRow+1):(nRow+4), ] = same_rew
+  
+  #matix of result
+  stay_mat_self[n, 1] <- round((w / a),digits = 3)
+  stay_mat_self[n, 2] <- round((x / b),digits = 3)
+  stay_mat_self[n, 3] <- round((y / c),digits = 3)
+  stay_mat_self[n, 4] <- round((z / d),digits = 3)
+  
+}
+stay.data.frame.self
+
+#---------------------------------------------------------------------- Outliers
+out_stay.dat.self <- stay.data.frame.self
+out_stay.dat.self <- out_stay.dat.self %>% 
+  dplyr::mutate(
+    stay_prob_z = make_z(out_stay.dat.self$stay_prob)
+  )
+#Using standardized scores to detect outliers  
+out_stay.dat.self %>% 
+  dplyr::filter_at(
+    vars(stay_prob_z),
+    any_vars(. >= 2.58)
+  )
+```
+
+
+```{r}
+#3-data frame for "OTHER" stay probability
+
+pre_other <- "my_data/subjectO_"
+stay_mat_other <- matrix(nrow = num_sub, ncol = 4)
+stay.data.frame.other = data.frame(id = integer(),
+                             stay_prob = double(), 
+                             stimulus = character(), 
+                             outcome_valence = character(), 
+                             beneficiary = character())
+for (n in 1:num_sub){
+  #dir other
+  dir_self <- paste(pre_other,n,"/data.mat", sep ="") 
+  subject <- readMat(dir_self)
+  #choice other
+  ch <- subject$data[, , 1]$choice
+  ind_choice <- which(ch!=0)
+  choice <- ch[ind_choice]
+  len <- length(choice)
+  len_1 <- length(choice)-1
+  #reward other
+  rew <- subject$data[, , 1]$reward
+  reward <- rew[ind_choice]
+  new_reward <-reward[1:len]
+  #state
+  st <- subject$data[, , 1]$state1
+  state <- st[ind_choice]
+  #stay other
+  stay <- (choice[1:(length(choice)-1)]) == choice[2:len]
+  #transition
+  trans <- (state[1:(length(state)-1)]) == state[2:len]
+  #calculating stay prob other
+  a <- 0 ; b <- 0 ; c <- 0 ; d <- 0 ; w=0 ; y=0 ; x=0 ; z=0
+  for(i in 1:len_1){
+    if (reward[i] > 0.5){
+      new_reward[i] = 2
+    } else{
+      new_reward[i] = 1
+    }
+    if (trans[i] == TRUE && new_reward[i] == 2){ #same_reward
+      if (stay[i] == TRUE){
+        a = a + 1
+        w = w + 1
+      }
+      else{
+        a = a + 1
+      }
+    }
+    else if (trans[i] == TRUE && new_reward[i] == 1){ #same_punishment
+      if (stay[i] == TRUE){
+        b = b + 1
+        x= x + 1
+      }
+      else {
+        b = b + 1
+      }
+    }
+    else if (trans[i] == FALSE && new_reward[i] == 2){ #different_reward
+      if (stay[i] == TRUE){
+        c = c + 1
+        y = y + 1
+      }
+      else {
+        c = c + 1
+      }
+    }
+    else if (trans[i] == FALSE && new_reward[i] == 1){ #different_punishment
+      if (stay[i] == TRUE){
+        d = d + 1
+        z = z + 1
+      }
+      else {
+        d = d + 1
+      }
+    }
+  }
+  # creating data.frame
+  same_rew <- data.frame(id = n, 
+                         stay_prob = round((w / a),digits = 3), 
+                         stimulus = "same", 
+                         outcome_valence = "reward", 
+                         beneficiary = "other")
+  same_punish <- data.frame(n, 
+                            stay_prob = round((x / b),digits = 3), 
+                            stimulus = "same", 
+                            outcome_valence = "punishment", 
+                            beneficiary = "other")
+  same_rew[nrow(same_rew) + 1, ] <- same_punish
+  diff_rew  <- data.frame(n, 
+                          stay_prob = round((y / c),digits = 3), 
+                          stimulus = "different", 
+                          outcome_valence = "reward", 
+                          beneficiary = "other")
+  same_rew[nrow(same_rew) + 1, ] <- diff_rew
+  diff_punish <- data.frame(n, 
+                            stay_prob = round((z / d),digits = 3), 
+                            stimulus = "different", 
+                            outcome_valence = "punishment", 
+                            beneficiary = "other")
+  same_rew[nrow(same_rew) + 1, ] <- diff_punish
+  nRow = nrow(stay.data.frame.other)
+  stay.data.frame.other[(nRow+1):(nRow+4), ] = same_rew
+  
+  #matrix of result
+  stay_mat_other[n, 1] <- round((w / a),digits = 3)
+  stay_mat_other[n, 2] <- round((x / b),digits = 3)
+  stay_mat_other[n, 3] <- round((y / c),digits = 3)
+  stay_mat_other[n, 4] <- round((z / d),digits = 3)
+  
+}
+
+stay.data.frame.other
+#---------------------------------------------------------------------- Outliers
+out_stay.dat.other <- stay.data.frame.other
+out_stay.dat.other <- out_stay.dat.other %>% 
+  dplyr::mutate(
+    stay_prob_z = make_z(out_stay.dat.other$stay_prob)
+  )
+#Using standardized scores to detect outliers  
+out_stay.dat.other %>% 
+  dplyr::filter_at(
+    vars(stay_prob_z),
+    any_vars(. >= 2.58)
+  )
+```
+
+
+```{r}
+#4-merged_stay probability of self & other
+stay.data.frame <- stay.data.frame.self
+stay.data.frame  <-  rbind(stay.data.frame.self, stay.data.frame.other)
+```
+
+```{r}
+#5-convert categorical data to factorial design
+my_data <- stay.data.frame %>%
+  dplyr::mutate(
+    stimulus = forcats::as_factor(stimulus) %>% forcats::fct_relevel
+    ("same", "different"),
+    outcome_valence = forcats::as_factor(outcome_valence)%>% forcats::fct_relevel
+    ("reward", "punishment"),
+    beneficiary = forcats::as_factor(beneficiary) %>% forcats::fct_relevel
+    ("self", "other")
+  )
+levels(my_data$beneficiary)
+my_data$id[[1]]
+my_data[["id"]][1]
+```
+
+```{r}
+#6-Exploring the data
+#compute the mean and a 95% confidence interval of stay probability
+group_data <- my_data %>% 
+  dplyr::group_by(id,outcome_valence, beneficiary)%>%
+  dplyr::summarize(
+    mean = round (mean(stay_prob), digits = 3))
+my_data %>% 
+  dplyr::group_by(beneficiary, outcome_valence) %>%
+  dplyr::summarize(
+    mean = round (mean(stay_prob), digits = 3),
+    `95% CI lower` = round(mean_cl_normal(stay_prob)$ymin, digits = 3),
+    `95% CI upper` = round(mean_cl_normal(stay_prob)$ymax, digits = 3)
+  )
+
+# plot the mean and a 95% confidence interval of stay probability scores split by the stimulus (x-axis).
+ggplot2::ggplot(my_data, aes(x = outcome_valence, y = stay_prob)) +
+  geom_point(colour = "#2C5577", alpha = 0.7, position = position_jitter(width = 0.1)) +
+  stat_summary(fun.data = "mean_cl_normal", geom = "pointrange") +
+  labs(x = "outcome valence", y = "stay probability") +
+  theme_minimal(base_size = 21)
+
+
+```
+
+
+```{r}
+#7-the model: factorial repeated measure ANOVA
+
+data_afx <- afex::aov_4(stay_prob ~ 
+                          stimulus*outcome_valence*beneficiary +
+                          (stimulus*outcome_valence*beneficiary | id),
+                           data = my_data)
+data_afx
+ano_afx <- anova(data_afx)
+
+#The main effect of outcome_valence is significant :
+#This effect means that overall when we ignore the type of stimulus and beneficiary, the type of outcome_valence significantly affected stay probability.
+#The fact that the interaction effect was significant suggests that the effect of the type of stimulus depended on outcome_valence and vice versa.
+#The effect of outcome_valence on stay probability was different when subjects repeated their choices compared to when they changed them. 
+
+
+#get the estimated marginal means for the effect of valence
+emmeans::emmeans(data_afx, ~ stimulus, model = "multivariate")
+emmeans::emmeans(data_afx, ~ outcome_valence, model = "multivariate")
+emmeans::emmeans(data_afx, ~ beneficiary, model = "multivariate")
+
+#plot the interaction
+my_plot <- afex::afex_plot(data_afx, "stimulus", "beneficiary", "outcome_valence", error = "within") +
+  labs(x = "stimulus", y = "stay probability") +
+  theme_minimal(base_size = 21)
+#save plot
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/st_interaction.png',
+       my_plot, device = "png", width = 10, height = 7, dpi = 300)
+stay_emm <- emmeans::emmeans(data_afx, c("stimulus", "outcome_valence","beneficiary"), model = "multivariate")
+
+
+#break down interactions is simple effects analysis
+emmeans::joint_tests(data_afx, "stimulus")
+emmeans::joint_tests(data_afx, "outcome_valence") #outcome_valences were significantly different in the mean number of stay probability made by subjects when faced with different stimulus 
+emmeans::joint_tests(data_afx, "beneficiary")
+
+#post hoc test
+pairs(stay_emm, adjust = "holm")
+#or
+int_emm <- emmeans::emmeans(data_afx, ~ beneficiary|stimulus + outcome_valence, method = "multivariate")
+pairs(int_emm, adjust = "holm")
+
+#result
+# subjects gain reward from different stimulus, the mean stay probability differ when playing for self compare to playing for other 
+```
+$$$results : There was a significant effect of valence. if we ignore the beneficiary and stimulus, stay probability were significantly affected by the type of outcome.
+The generalized eta-squared suggests a fairly large effect (η2G=0.664).$$$
+```{r}
+#8-guid
+stay_dat %>% 
+  dplyr::summarize(
+    `95% CI lower` = mean_cl_normal(same_rew)$ymin,
+    `95% CI upper` = mean_cl_normal(same_rew)$ymax
+  )
+df <- data.frame(df1, v1, v2, m1, v3, stringsAsFactors = FALSE) #“tells” R to read in character
+rbind(df1, df2)
+iterations = 10
+variables = 2
+
+output <- matrix(ncol=variables, nrow=iterations)
+
+for(i in 1:iterations){
+  output[i,] <- runif(2)
+}
+output
+
+mylist <- list() #create an empty list
+
+for (i in 1:5) {
+  vec <- numeric(5) #preallocate a numeric vector
+  for (j in 1:5) { #fill the vector
+    vec[j] <- i^j 
+  }
+  mylist[[i]] <- vec #put all vectors in the list
+}
+df <- do.call("rbind",mylist) #combine all vectors into a matrix
+
+data <- data.frame(x1 = 1:5,                      # Create example data
+                   x2 = 6:10,
+                   x3 = 11:15)
+for(i in 1:2) {                                   # Head of for-loop
+  new <- rep(i, ncol(data))                       # Create new row
+  data[nrow(data) + 1, ] <- new                   # Append new row
+}
+for(i in 1:3) {                                   # Head of for-loop
+  new <- rep(i, nrow(data))                       # Create new column
+  data[ , ncol(data) + 1] <- new                  # Append new column
+  colnames(data)[ncol(data)] <- paste0("new", i)  # Rename column name
+}
+```
+

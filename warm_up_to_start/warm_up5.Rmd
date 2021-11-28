@@ -1,0 +1,145 @@
+---
+title: "warm_up_5 _Factorial repeated measures designs (2)"
+author: "Paris.N"
+date: "10/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(afex)
+library(tidyverse)
+library(here)
+library(WRS2)
+scent_tib <- here::here("data/alien_scents.csv") %>%
+  readr::read_csv() %>%
+   dplyr::mutate(
+      entity = forcats::as_factor(entity) %>% forcats::fct_relevel("Human", "Shapeshifter", "Alien"),
+      scent_mask = forcats::as_factor(scent_mask) %>% forcats::fct_relevel("None", "Human", "Fox"),
+  )
+sniff_tib <- here::here("data/sniffer_dogs.csv") %>%
+  readr::read_csv() %>%
+  dplyr::mutate(
+    entity = forcats::as_factor(entity)
+  )
+
+```
+
+```{r}
+#Exploring the data (1)
+sniff_tib
+levels(sniff_tib$entity)
+
+sniff_tib %>% 
+  dplyr::group_by(entity) %>% 
+  dplyr::summarize(
+    mean = mean(vocalisations, na.rm = TRUE),
+    `95% CI lower` = mean_cl_normal(vocalisations)$ymin,
+    `95% CI upper` = mean_cl_normal(vocalisations)$ymax
+  )
+#plot the mean and a 95% confidence interval of vocalisation scores split by the entity (x-axis). 
+ggplot2::ggplot(sniff_tib, aes(x = entity, y = vocalisations)) +
+  geom_point(colour = "#2C5577", alpha = 0.7, position = position_jitter(width = 0.1)) +
+  stat_summary(fun.data = "mean_cl_normal", geom = "pointrange") +
+  coord_cartesian(ylim = c(0,10)) +
+  scale_y_continuous(breaks = 0:10) +
+  labs(x = "Entity sniffed", y = "Number of vocalisations") +
+  theme_minimal()
+```
+
+```{r}
+#Fitting a repeated measures model (1)
+#a simple overall model of type of entity predicting the number of dog vocalisations:
+# fit the model:
+sniff_afx <- afex::aov_4(vocalisations ~ entity + (entity|dog_name), data = sniff_tib)
+sniff_afx
+
+#Estimated marginal means (1)
+#using contrasts or post hoc tests, know which entities differed
+sniff_emm <- emmeans::emmeans(sniff_afx, ~entity, model = "multivariate")
+sniff_emm # shows us the means
+#Planned contrasts (2)
+# Remember that you can access a variable in a tibble using the general form:
+levels(sniff_tib$entity)
+
+sniff_cons <- list(
+  aliens_vs_non = c(1/2, -1/2, -1/2, 1/2),
+  alien_vs_shape = c(1/2, 0, 0, -1/2),
+  human_vs_manquin = c(0, 1/2, -1/2, 0)
+  )
+
+emmeans::contrast(sniff_emm, sniff_cons)
+```
+
+```{r}
+#Post hoc tests (2)
+pairs(sniff_emm, adjust = "holm")
+#result:
+#There were significantly more dog vocalisations when sniffing an alien compared to a mannequin & an alien compared to a human. 
+```
+
+```{r}
+#Robust models (2)
+#The function rmanova() calculates the test for dependent trimmed means:
+#and the function rmmcp() computes the associated post hoc tests:
+WRS2::rmanova(y = sniff_tib$vocalisations, groups = sniff_tib$entity, blocks = sniff_tib$dog_name)
+WRS2::rmmcp(y = sniff_tib$vocalisations, groups = sniff_tib$entity, blocks = sniff_tib$dog_name)
+```
+
+```{r}
+#Factorial repeated measures designs (2)
+```
+
+```{r}
+scents_tib
+```
+
+```{r}
+#Fitting the model for factorial repeated measures designs (2)
+# fit the model:
+scent_afx <- afex::aov_4(vocalisations ~ entity*scent_mask + (entity*scent_mask|dog_id), data = scent_tib)
+scent_afx #this shows us the model
+#The extent to which the type of entity sniffed affected vocalisations depended on the type of scent worn &
+#The extent to which the type of scent worn affected vocalisations depended on the type of entity sniffed.
+#get the estimated marginal means for this effect:
+emmeans::emmeans(scent_afx, ~entity, model = "multivariate")
+
+```
+
+```{r}
+#Plots using the afex package (1)
+afex::afex_plot(scent_afx, "scent_mask", "entity", error = "within") +
+  labs(x = "Scent used", y = "Number of vocalisations") +
+  theme_minimal()
+
+```
+
+```{r}
+#Estimated marginal means (1)
+scent_emm <- emmeans::emmeans(scent_afx, c("entity", "scent_mask"), model = "multivariate")
+scent_emm # we need this command to view the means
+```
+
+```{r}
+#Simple effects analysis (2)
+#what is the effect of scent_mask within each entity group?
+#if we want to look at the effect of scent_mask in each level of entity, we’d execute:
+emmeans::joint_tests(scent_afx, "entity")
+
+#If we wanted to look at the effect of entity separately for attractive and unattractive stimuli, we’d execute:
+emmeans::joint_tests(scent_afx, "scent_mask")
+```
+
+```{r}
+#post hoc
+pairs(scent_emm, adjust = "holm")
+
+#Let’s make things more manageable by comparing only the mean vocalisations across entities,
+#This analysis answers three questions: (1) when no scent is worn, do the mean vocalisations differ when sniffing a human, shapeshifter and alien? (2) When human scent is worn, do the mean vocalisations differ when sniffing a human, shapeshifter and alien? and, (3) When fox scent is worn, do the mean vocalisations differ when sniffing a human, shapeshifter and alien?
+int_emm <- emmeans::emmeans(scent_afx, ~entity|scent_mask, method = "multivariate")
+pairs(int_emm, adjust = "holm")
+```
+

@@ -1,0 +1,98 @@
+---
+title: "WARM_UP_6 _ CATEGORICAL OUTCOME"
+author: "Paris.N"
+date: "11/2/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(interactions)
+library(tidyverse)
+library(here)
+library(forcats)
+```
+
+```{r}
+santa_tib <- here::here("data/santas_log.csv") %>%
+  readr::read_csv() %>%
+   dplyr::mutate(
+    treat = forcats::as_factor(treat) %>% forcats::fct_relevel("Pudding", "Mulled wine"),
+    delivered = forcats::as_factor(delivered) %>% forcats::fct_relevel("Not delivered", "Delivered")
+  )
+santa_tib
+```
+
+```{r}
+#Use the code box to create a table of frequencies for the variables of treat and delivered. You should get a table that shows the four frequencies
+delivery_xtab <- xtabs(~ treat + delivered, data = santa_tib)
+delivery_xtab
+```
+
+```{r}
+#Create a table of frequencies for the variables of treat and delivered called santa_xtab
+santa_xtab <- santa_tib %>% 
+  dplyr::group_by(treat, delivered) %>% 
+  dplyr::summarize(n = n())
+santa_xtab 
+```
+
+```{r}
+#spread the values for the categories of delivered across columns.
+santa_xtab <- santa_xtab %>% 
+  tidyr::pivot_wider(
+    id_cols = "treat",
+    names_from = "delivered",
+    values_from = "n"
+  )
+santa_xtab # This line displays the object we created above
+```
+
+```{r}
+#Fitting the model 
+santa_glm <- glm(delivered ~ treat, data = santa_tib, family = binomial())
+broom::tidy(santa_glm, conf.int = TRUE)
+#it now contains the model parameters expressed as odds rather than log odds.
+broom::tidy(santa_glm, conf.int = TRUE, exponentiate = TRUE)
+
+```
+
+```{r}
+#Assessing overall fit 
+santa_int <- glm(delivered ~ 1, data = santa_tib, family = binomial())
+santa_treat <- glm(delivered ~ treat, data = santa_tib, family = binomial())
+anova(santa_int, santa_treat, test = "Chisq")
+```
+
+```{r}
+#Hierarchical variable entry 
+santa_int <- glm(delivered ~ 1, data = santa_tib, family = binomial())
+santa_treat <- update(santa_int, .~. + treat)
+santa_quant <- update(santa_treat, .~. + quantity)
+santa_full <- update(santa_quant, .~. + treat:quantity)
+anova(santa_int, santa_treat, santa_quant, santa_full, test = "Chisq")
+```
+
+
+```{r}
+#Fitting the model in one step
+santa_full_glm <- glm(delivered ~ treat*quantity, data = santa_tib, family = binomial())
+broom::tidy(santa_full_glm, conf.int = TRUE)
+#View the exponentiated model parameters.
+
+```
+
+```{r}
+#Plotting the interaction
+interactions::interact_plot(santa_full_glm, pred = quantity, modx = treat) +
+  labs(x = "Quantity of treats consumed", y = "Probability of delivery", fill = "Treat") +
+  theme_minimal()
+```
+
+```{r}
+
+```
+

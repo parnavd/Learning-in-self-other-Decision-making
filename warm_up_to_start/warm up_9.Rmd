@@ -1,0 +1,111 @@
+---
+title: "warm up_9_mderation & mediation"
+author: "Paris.N"
+date: "11/19/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(interactions)
+library(tidyverse)
+library(here)
+library(parameters)
+library(lavaan)
+library(broom)
+
+vids_tib  <- here::here("data/video_games.csv") %>% readr::read_csv()
+infidelity_tib <- here::here("data/lambert_2012.csv") %>% readr::read_csv()
+```
+
+```{r}
+#to centre the variable caunts within vids_t
+ids_tib <- vids_tib %>% 
+  dplyr::mutate(
+    caunts_cent = caunts - mean(caunts, na.rm = TRUE),
+    vid_game_cent = vid_game - mean(vid_game, na.rm = TRUE)
+  )
+vids_tib
+ids_tib
+
+#Using a function to center variables 
+centre <- function(var){
+  var - mean(var, na.rm = TRUE)
+}
+
+#Having written the function we can use it in conjunction with mutate() and across() to centre all variables that we select.
+vids_tib <- vids_tib %>% 
+  dplyr::mutate(
+    dplyr::across(c(vid_game, caunts), list(cent = centre))
+    )
+
+vids_tib
+```
+
+```{r}
+# Fitting a moderation model
+aggress_lm <- lm(aggress ~ caunts_cent*vid_game_cent, data = vids_tib)
+broom::tidy(aggress_lm, conf.int = TRUE)
+#Moderation is shown up by a significant interaction effect, and that’s what we’ve got here, b = 0.027, 95% CI [0.013, 0.041], t = 3.88, p < 0.001 indicating that the relationship between the time spent gaming and aggression is moderated by callous traits.
+
+
+# Robust moderation models
+parameters::model_parameters(aggress_lm, robust = TRUE, vcov.type = "HC4", digits = 3)
+#onsistent with the non-robust model, the robust model shows a significant moderation effect, b = 0.027, 95% CI [0.01, 0.04], t = 3.71, p < 0.001.
+```
+
+```{r}
+#To interpret the moderation effect we examine the simple slopes and Johnson-Neyman interval.
+# Ask for confidence intervals (solution)
+interactions::sim_slopes(
+  aggress_lm,
+  pred = vid_game_cent,
+  modx = caunts_cent,
+  jnplot = TRUE,  #jnplot and jnalpha determine whether to plot the Johnson-Neyman interval 
+  jnalpha = 0.05, #alpha level
+  robust = TRUE,
+  confint = TRUE
+  )
+
+# it says that the boundaries of the zone of significance are −17.10 and −0.72. 
+#When callous traits are low, there is a non-significant negative relationship between time spent gaming and aggression, b=−0.09, 95% CI [−0.30, 0.12], t=−0.86, p=0.39.
+#At the mean value of callous traits, there is a significant positive relationship between time spent gaming and aggression, b=0.17, 95% CI [0.02, 0.32], t=2.23, p=0.03.
+#When callous traits are high, there is a significant positive relationship between time spent gaming and aggression, b=0.43, 95% CI [0.23, 0.63], t=4.26, p<0.01.
+#These results tell us that the relationship between time spent playing violent video games and aggression only really emerges in people with average or greater levels of callous-unemotional traits.
+
+```
+
+```{r}
+#Plotting simple slopes
+interactions::interact_plot(
+  aggress_lm,
+  pred = vid_game_cent,
+  modx = caunts_cent,
+  interval = TRUE,
+  x.label = "Time playing video games per week (hours)",
+  y.label = "Predicted aggression",
+  legend.main = "Callous unemotional traits"
+  )
+#When callous traits are low (one standard deviation below the mean, labelled as −1 SD) there is a non-significant negative relationship between time spent gaming and aggression; at the mean value of callous traits (the line labelled Mean) there is small positive relationship between time spent gaming and aggression; and this relationship gets even stronger at high levels of callous traits (one standard deviation above the mean, labelled as +1 SD).
+```
+
+```{r}
+#Mediation
+# Define the model
+infidelity_mod <- 'phys_inf ~ c*ln_porn + b*commit
+                   commit ~ a*ln_porn
+
+                   indirect_effect := a*b
+                   total_effect := c + (a*b)
+                   '
+# fit the model with FIML and robust SEs
+infidelity_fit <- lavaan::sem(infidelity_mod, data = infidelity_tib, missing = "FIML", estimator = "MLR")
+
+#summarize the model
+broom::glance(infidelity_fit)
+broom::tidy(infidelity_fit, conf.int = TRUE)
+```
+

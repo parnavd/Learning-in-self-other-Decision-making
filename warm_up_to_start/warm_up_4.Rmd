@@ -1,0 +1,170 @@
+---
+title: "warm_up_4 _ factorial design"
+author: "Paris.N"
+date: "10/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(afex)
+library(tidyverse)
+library(broom)
+library(effectsize)
+library(modelbased)
+library(here)
+library(parameters)
+library(sandwich)
+library(ggfortify)
+#data
+goggles_tib <- here::here("data/goggles.csv") %>%
+  readr::read_csv() %>%
+  dplyr::mutate(
+    facetype = forcats::as_factor(facetype),
+    alcohol = forcats::as_factor(alcohol)
+  )
+
+xbox_tib <- here::here("data/xbox.csv") %>%
+  readr::read_csv() %>%
+  dplyr::mutate(
+    game = forcats::as_factor(game) %>% forcats::fct_relevel(., "Static"),
+    console = forcats::as_factor(console) %>% forcats::fct_relevel(., "Xbox One")
+  )
+goggles_tib
+
+levels(goggles_tib$facetype)
+levels(goggles_tib$alcohol)
+```
+
+```{r}
+#Exploring the data (1)
+# Solution
+goggles_tib %>% 
+  dplyr::group_by(facetype, alcohol) %>% 
+  dplyr::summarize(
+    mean = mean(attractiveness, na.rm = TRUE),
+    `95% CI lower` = mean_cl_normal(attractiveness)$ymin,
+    `95% CI upper` = mean_cl_normal(attractiveness)$ymax
+  )
+
+#plot the mean and a 95% confidence interval of attractiveness scores split by the type of face (x-axis) being rated and the alcohol consumption (colour)
+# Solution
+ggplot2::ggplot(goggles_tib, aes(x = alcohol, y = attractiveness, colour = facetype)) +
+  stat_summary(fun.data = "mean_cl_normal", geom = "pointrange", position = position_dodge(width = 0.2)) +
+  coord_cartesian(ylim = c(0,10)) +
+  scale_y_continuous(breaks = 0:10) +
+  labs(x = "Alcohol consumption", y = "Attractiveness (0-10)", colour = "Type of face") +
+  theme_minimal()
+```
+
+```{r}
+#Fitting the model using the afex package (1)
+goggles_afx <- afex::aov_4(attractiveness ~ facetype*alcohol + (1|id), data = goggles_tib)
+goggles_afx
+#The main effect of type of face is significant :
+#This effect means that overall when we ignore how much alcohol had been drunk the type of face being rated significantly affected attractiveness ratings. 
+#The main effect of alcohol is significant:
+#This effect means that when we ignore whether the participant rated unattractive or attractive faces the amount of alcohol significantly influenced their attractiveness ratings. 
+#The fact that the interaction effect was significant suggests that the effect of the type of face depended on how much alcohol was consumed and vice versa.
+#The effect of alcohol on attractiveness ratings was different when rating unattractive faces compared to when rating attractive faces. 
+#The difference between the mean ratings of attractive and unattractive faces varied as a function of how much alcohol was consumed. 
+```
+
+
+```{r}
+# solution:Plots using the afex package (1)
+afex::afex_plot(goggles_afx, "alcohol", "facetype") +
+  labs(x = "Alcohol consumption", y = "Attractiveness rating (0-10)") +
+  theme_minimal()
+```
+
+```{r}
+#Estimated marginal means
+emmeans::emmeans(goggles_afx, c("alcohol", "facetype"))
+```
+
+```{r}
+#Fitting the model using lm() (2)
+#Using contr.sum(n) we could set the contrasts for the two predictors by executing 
+contrasts(goggles_tib$facetype) <- contr.sum(2)
+contrasts(goggles_tib$alcohol) <- contr.sum(3)
+goggles_lm <- lm(attractiveness ~ facetype*alcohol, data = goggles_tib)
+car::Anova(goggles_lm, type = 3) # or car::Anova(goggle_lm, type = 3, white.adjust = "hc3")
+
+#means across all combinations of levels of the predictors in the model goggles_lm.
+modelbased::estimate_means(goggles_lm)
+```
+
+```{r}
+#Using manual contrasts (3)
+alcohol_vs_none <- c(-2/3, 1/3, 1/3)
+low_vs_high <- c(0, -1/2, 1/2)
+contrasts(goggles_tib$alcohol) <- cbind(alcohol_vs_none, low_vs_high)
+contrasts(goggles_tib$facetype) <- c(-1/2, 1/2)
+goggles_lm <- lm(attractiveness ~ facetype*alcohol, data = goggles_tib)
+car::Anova(goggles_lm, type = 3)
+#because we have set up meaningful contrasts we can use the parameter estimates to interpret the interaction.
+broom::tidy(goggles_lm)
+```
+
+```{r}
+#Simple effects analysis (2)
+#the effect of alcohol separately for attractive and unattractive stimuli,
+emmeans::joint_tests(goggles_afx, "facetype") # for the model created with afex
+emmeans::joint_tests(goggles_lm, "facetype") # for the model created with lm
+#There was a significant effect of alcohol on attractiveness ratings for unattractive faces, but not attractive ones. 
+
+#obtain the simple effect of facetype separately for each dose of alcohol:
+emmeans::joint_tests(goggles_afx, "alcohol") # for the model created with afex
+emmeans::joint_tests(goggles_lm, "alcohol") # for the model created with lm
+
+```
+
+```{r}
+#Diagnostic plots (1)
+plot(goggles_lm, which = c(1, 3, 2, 4))
+
+# or to get  a nicely formatted plots
+# library(ggfortify)  # outside of this tutorial you'll need this
+
+ggplot2::autoplot(goggles_lm,
+                  which = c(1, 3, 2, 4),
+                  colour = "#5c97bf",
+                  smooth.colour = "#ef4836",
+                  alpha = 0.5,
+                  size = 1) + 
+  theme_minimal()
+```
+
+```{r}
+#Robust models (2)
+goggles_rob <- robust::lmRob(attractiveness ~ facetype*alcohol, data = goggles_tib)
+summary(goggles_rob)
+#summary of an existing model like goggles_lm that uses heteroscedasticity-consistent standard errors:
+parameters::model_parameters(goggles_lm, robust = TRUE, vcov.type = "HC4", digits = 3)
+#Given the small sample size, we might also consider a bootstrap model:
+parameters::bootstrap_parameters(goggles_lm)
+```
+
+```{r}
+#Effect sizes (3)
+#The function uses the sums of squares from the object that is passed into it, so it’s safest to re-use our earlier code with car::Anova() where we set the sums of squares and pipe it into the function. Try this below.
+car::Anova(goggles_lm, type = 3) %>% 
+  effectsize::eta_squared(., ci = 0.95)
+
+#If you fitted the model with afex you can pipe the model goggles_afx directly into the function:
+goggles_afx %>% 
+  effectsize::eta_squared(., ci = 0.95)
+
+#compute partial omega squared for the predictors in either goggles_lm or goggles_afx depending on which you fitted earlier.
+# solution for goggles_lm:
+car::Anova(goggles_lm, type = 3) %>% 
+  effectsize::omega_squared(., ci = 0.95)
+# solution for goggles_afx:
+goggles_afx %>% 
+  effectsize::omega_squared(., ci = 0.95)
+```
+

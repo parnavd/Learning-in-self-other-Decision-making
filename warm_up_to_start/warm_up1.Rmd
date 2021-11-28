@@ -1,0 +1,176 @@
+---
+title: "warm_up _ GLM"
+author: "Paris.N"
+date: "10/26/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### 08 - GLM
+outcome variable: predicting physical, downloaded and streamed album sales
+```{r}
+library(broom) 
+library(GGally)
+library(ggfortify) 
+library(here )
+library(parameters) 
+library(tidyverse)
+album_tib <- here::here("warm_up_to_start/album_sales.csv") %>% readr::read_csv()
+soc_anx_tib <- here::here("warm_up_to_start/social_anxiety.csv") %>% readr::read_csv()
+metal_tib <- here::here("warm_up_to_start/metal_health.csv") %>% readr::read_csv()
+```
+
+```{r}
+## Visualizing the data
+GGally::ggscatmat(album_tib, columns = c("adverts", "airplay", "image", "sales")) +
+  theme_minimal()
+
+```
+Across the diagonal, we see the distributions of scores. Advertising is very skewed and airplay and sales look quite heavy-tailed.
+If we look only at the predictors (ignore album sales) then the highest correlation is between the ratings of the band’s image and the amount of airplay which is significant at the 0.01 level (r = 0.18). Focussing on the outcome variable, of all of the predictors, adverts and airplay correlate best with the outcome (rs = 0.58 and 0.6 respectively).
+
+```{r}
+album_tib %>%
+  dplyr::select(adverts, airplay, image, sales) %>%
+  correlation::correlation(method = "percentage")
+```
+
+```{r}
+##One predictor (1)
+ #Fitting the model (1)
+
+album_lm <- lm(sales ~ adverts, data = album_tib, na.action = na.exclude)
+album_lm
+#Extracting model information with summary()
+summary(album_lm)
+#Overall fit of the model`
+broom::glance(album_lm)
+#Model parameters (1)
+broom::tidy(album_lm, conf.int = TRUE)
+```
+
+#Overall fit of the model(1)
+R squaed: Advertising expenditure accounts for 33.5% of the variation in album sales.
+adding the predictor of advertising significantly improved the fit of the model to the data compared to having no predictors in the model, F(2, 198) = 99.58, p < .001. In other words, adding advertising as a predictor significantly improved the model fit.
+#Model parameters (1)
+for an increase in advertising of £1000 the model predicts 96 (0.096 × 1000 = 96) extra album sales. This investment is pretty useless for the record company: it invests £1000 and gets only 96 extra sales! Fortunately, as we already know, advertising accounts for only one-third of the variance in album sales.
+t-test (labelled statistic) and associated p-value tell us whether the b-value is significantly different from 0. 
+*If a b-value has a large standard error, That estimates of b vary widely across different samples. (Therefore, this estimate could be very different from the population value.)
+Looking at the 95% confidence interval for advertising (reproduced above), if our sample is one of the 95% producing confidence intervals that contain the population value then the confidence interval tells us that the population value of b for advertising budget is likely to fall between 0.077 and 0.115 and because this interval doesn’t include zero we might conclude that there is a genuine positive relationship between advertising budget and album sales in the population.
+
+```{r}
+## Several predictors (1)
+album_full_lm <- lm(sales ~ adverts + airplay + image, data = album_tib, na.action = na.exclude)
+broom:: glance(album_full_lm)
+```
+R2change=0.665−0.335=0.33 . In other words, image and airplay account for an additional 33% of the variance in sales.
+adjusted R2 : (it is 0.665−0.660=0.005 or about 0.5%). This shrinkage means that if the model were derived from the population rather than a sample we’d conclude that it accounted for approximately 0.5% less variance in the outcome.
+F(3, 196) = 129.50, p < .001. We can interpret this result as meaning that the model significantly improves our ability to predict the outcome variable compared to not fitting the model.
+
+```{r}
+#Comparing models (2)
+anova(album_lm, album_full_lm) %>% broom::tidy()
+broom::tidy(album_full_lm, conf.int = TRUE)
+```
+adding the predictors of image and airplay (album_full_lm) significantly improved the fit of the model to the data compared to having only advertising as a predictor (album_lm), F(2, 196) = 96.45, p < .001.
+
+If a band can increase their image rating by 1 unit they can expect additional album sales of 11,086 units 
+statistic and p.value tell us that the probability of getting a value of t at least as big as these values if the value of b were, in fact, zero is smaller than 0.001 for all predictors.
+
+```{r}
+# Standardized bs (2)
+parameters::model_parameters(album_full_lm, standardize = "refit", digits = 3)
+
+```
+
+# example(1): 
+
+```{r}
+metal_lm <- lm(suicide ~ hm, data = metal_tib, na.action = na.exclude)
+broom::glance(metal_lm)
+broom:: tidy(metal_lm, conf.int = TRUE)
+```
+the final model explain 12.5% varince
+As love of heavy metal increases, suicide risk decreases : because the b_value is negative: -0.612 units
+
+# example(2)
+
+```{r}
+soc_anx_lm <- lm(spai ~ tosca, data = soc_anx_tib, na.action = na.exclude)
+soc_anx_obq_lm <- lm(spai ~ tosca + obq, data = soc_anx_tib, na.action = na.exclude)
+broom::glance(soc_anx_lm)
+broom::glance(soc_anx_obq_lm)
+broom::tidy(soc_anx_obq_lm, conf.int = TRUE)
+parameters::model_parameters(soc_anx_obq_lm, standardize = "refit", digits = 3)
+```
+
+#### The beast of bias (2)
+look at whether the model we have just fitted is biased. 
+```{r}
+# plot
+
+plot(album_full_lm, which = c(1:6))
+
+#or
+
+ggplot2:: autoplot(album_full_lm,
+                   which = c(1:6),
+                   colour = "#5c97bf",
+                   smooth.colour = "#ef4836",
+                   alpha = 0.5,
+                   size = 1) + 
+  theme_minimal()
+```
+1-The predicted values from the model (x-axis) against the residuals (y-axis). Use this plot to look for linearity and homoscedasticity.
+2-A Q-Q plot of the standardized residuals. Use this plot to look for normality of residuals.
+3-The predicted values from the model (x-axis) against the square root of the standardized residuals (y-axis). This is a variant of plot 1 and is used to look for linearity and homoscedasticity.
+4-The case number (x-axis) against the Cook’s distance (y-axis). This plot can help to identify influential cases (cases with large values for Cook’s distance).
+5-The leverage value for each case (x-axis) against the standardized residual (y-axis). This plot is used to identify influential cases and outliers.
+6-The leverage value for each case (x-axis) against the corresponding Cook’s distance (y-axis). This plot is used to identify influential cases and outliers.
+
+
+```{r}
+#Influential cases and outliers: numbers (2)
+#values for Cooks distance and standardized residuals:
+#The var = “case_no” tells the function to name the variable containing the row numbers case_no
+album_full_rsd <- album_full_lm %>% 
+  broom::augment(., data = album_tib, na.action = na.exclude) %>%
+  tibble::rowid_to_column(var = "case_no")
+album_full_rsd
+#we can simply filter the tibble containing the residuals such that we see only cases with a standardized residual that is less than −1.96 or greater than 1.96.
+#To simplify this task we can use the abs() function within the filter to return the absolute value (ignores the plus or minus sign) of the residual. Doing so means that we can simply filter by values above 1.96 (or whatever threshold we want to use). 
+album_full_rsd %>%
+  dplyr:: filter(abs(.std.resid) >= 1.96) %>%
+  dplyr::select(case_no, .std.resid, .resid) %>% #To make the output more focussed we can pipe the filtered tibble into select() and select only the case number, the standardized residual and the raw residual.  
+  dplyr::arrange(.std.resid) #we pipe the tibble into arrange() to sort it by the size of .std.resid, so that the resulting table will list cases from the smallest standardized residual to the largest.
+
+# Cook’s distance:
+album_full_rsd %>% 
+  dplyr::arrange(desc(.cooksd)) %>%
+  dplyr::select(case_no, .cooksd)
+
+```
+Robust linear models (2)
+Our model appears, in most senses, to be both accurate for the sample and generalizable to the population.
+```{r}
+#Robust parameter estimates (3)
+
+album_full_rob <- robust::lmRob(sales ~ adverts + airplay + image, data = album_tib, na.action = na.exclude)
+summary(album_full_rob)
+#these tests suggest that bias in the original model is not problematic (because the p-value for these tests are not significant).
+```
+
+```{r}
+#Robust confidence intervals and significance tests (2)
+#To test whether confidence intervals and significance tests are biased we can estimate the model with standard errors designed for heteroscedastic residuals or if the sample size is small use a bootstrap.
+parameters::model_parameters(album_full_lm, robust = TRUE, vcov.type = "HC4", digits = 3)
+#or
+parameters::model_parameters(album_full_lm, bootstrap = TRUE, digits = 3)
+
+# nothing has changed much from the original model (because the original model didn’t violate any assumptions or have influential cases or outliers.)
+
+```
+

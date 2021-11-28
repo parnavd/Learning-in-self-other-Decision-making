@@ -1,0 +1,40 @@
+---
+title: "ANCOVA"
+author: "Paris.N"
+date: "11/14/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)  # ggplot2, tidyr, dplyr
+library(emmeans) 
+install.packages("faraway")
+library(faraway)
+data('teengamb', package='faraway')
+# Forces R to recognize that 0, 1 are categorical, also
+# relabels the levels to something I understand.
+teengamb <- teengamb %>% mutate( sex = ifelse( sex==1, 'Female', 'Male') )
+# Fit a linear model with the interaction of sex and income
+# Interactions can be specified useing a colon :
+m1 <- lm( gamble ~ 1 + sex + income + sex:income, data=teengamb ) 
+m1 <- lm( gamble ~     sex + income + sex:income, data=teengamb ) 
+# R allows a shortcut for the prior definition
+m1 <- lm( gamble ~ sex * income, data=teengamb )
+# save the fit, lwr, upr values for each observation
+# these are the yhat and CI 
+# If columns for fit, upr, lwr are already present, remove them
+teengamb <- teengamb %>%
+  dplyr::select( -matches('fit'), -matches('lwr'), -matches('upr') ) %>%
+  cbind( predict(m1, interval='conf') )
+# Make a nice plot that includes the regression line.
+ggplot(teengamb, aes(x=income, col=sex, fill=sex)) + 
+      geom_ribbon(aes(ymin=lwr, ymax=upr),
+                  alpha=.3) +   # how solid the layer is
+      geom_point(aes(y=gamble)) +
+      geom_line(aes(y=fit)) 
+```
+

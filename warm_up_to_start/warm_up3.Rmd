@@ -1,0 +1,139 @@
+---
+title: "warm_up_3 _Comparing several means (GLM 1)"
+author: "Paris.N"
+date: "10/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(broom)
+library(effectsize)
+library(modelbased)
+library(here)
+library(parameters)
+library(sandwich)
+puppy_tib <- here::here("data/puppies.csv") %>%
+  readr::read_csv() %>%
+  dplyr::mutate(
+    dose = forcats:: as_factor(dose)
+  )
+
+#change the order:
+puppy_tib <- puppy_tib %>%
+  dplyr::mutate(
+    dose = forcats::fct_relevel(dose, "Control", "15 mins", "30 mins")
+  )
+```
+
+```{r}
+# Exploring the data (1)
+ggplot2::ggplot(puppy_tib, aes(dose, happiness)) + 
+  geom_violin() +
+  stat_summary(fun.data = "mean_cl_boot") +
+  labs(x = "Dose of puppies", y = "Happiness (0-10)") +
+  scale_y_continuous(breaks = 1:7) +
+  theme_minimal()
+
+#Use what you already know to compute the mean and a 95% confidence interval of happiness scores split by the therapy group to which a person belonged:
+puppy_tib %>% 
+  dplyr::group_by(dose) %>% 
+  dplyr::summarize(
+    mean = mean(happiness, na.rm = TRUE),
+    `95% CI lower` = mean_cl_normal(happiness)$ymin,
+    `95% CI upper` = mean_cl_normal(happiness)$ymax
+  )
+
+```
+
+```{r}
+#Fit the model (1)
+ #Dummy coding 
+# Solution
+puppy_lm <- lm(happiness ~ dose, data = puppy_tib, na.action = na.exclude)
+
+anova(puppy_lm) %>% 
+  parameters::parameters(., omega_squared = "raw")
+
+broom::tidy(puppy_lm, conf.int = TRUE)
+#result
+#the group means are significantly different
+#Overall happiness can be significantly predicted from the dummy variables representing the group means. This implies that the group means are significantly different. 
+#Happiness scores were significantly different between the 30-minute group and the control group but not between the 15-minute group and the control group. 
+#The b-value for the first dummy variable (labelled dose15 mins) is equal to the difference between the means of the 30-minute group and the control group (5.0−2.2=2.8) and so forth.
+
+```
+
+```{r}
+#Diagnostic plots (1)
+plot(puppy_lm, which = c(1, 3, 2, 4))
+
+# or to get  a nicely formatted plots
+# library(ggfortify)  # outside of this tutorial you'll need this
+
+ggplot2::autoplot(puppy_lm,
+                  which = c(1, 3, 2, 4),
+                  colour = "#5c97bf",
+                  smooth.colour = "#ef4836",
+                  alpha = 0.5,
+                  size = 1) + 
+  theme_minimal
+
+
+```
+
+```{r}
+#Contrast coding (2)
+
+# Put it all together:
+puppy_vs_none <- c(-2/3, 1/3, 1/3)
+short_vs_long <- c(0, -1/2, 1/2)
+contrasts(puppy_tib$dose) <- cbind(puppy_vs_none, short_vs_long)
+contrasts(puppy_tib$dose) # This line prints the contrast weights so we can check them
+
+
+puppy_lm <- lm(happiness ~ dose, data = puppy_tib)
+
+anova(puppy_lm) %>% 
+  parameters::parameters(., omega_squared = "raw")
+
+broom::tidy(puppy_lm, conf.int = TRUE) %>% 
+ dplyr::mutate(                                   #This part is only necessary if you want to round the values
+    dplyr::across(where(is.numeric), ~round(., 3))
+  )
+```
+
+```{r}
+#Trend analysis (polynomial contrasts) (2)
+contrasts(puppy_tib$dose) <- contr.poly(3)
+puppy_trend <- lm(happiness ~ dose, data = puppy_tib)
+anova(puppy_trend) %>% 
+  parameters::parameters(., omega_squared = "raw")
+broom::tidy(puppy_trend, conf.int = TRUE) %>% 
+  dplyr::mutate(
+    dplyr::across(where(is.numeric), ~round(., 3))
+  )
+```
+
+```{r}
+#Post hoc tests (2)
+modelbased::estimate_contrasts(puppy_lm) %>% 
+  dplyr::mutate(
+    dplyr::across(where(is.numeric), ~round(., 3))
+  )
+```
+
+```{r}
+#Robust models (2)
+oneway.test(happiness ~ dose, data = puppy_tib)
+
+puppy_rob <- robust::lmRob(happiness ~ dose, data = puppy_tib)
+summary(puppy_rob)
+
+parameters::model_parameters(puppy_lm, robust = TRUE, vcov.type = "HC4", digits = 3)
+```
+

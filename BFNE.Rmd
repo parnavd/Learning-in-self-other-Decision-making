@@ -1,0 +1,138 @@
+---
+title: "BFNE"
+author: "Paris.N"
+date: "11/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(here)
+library(tidyverse)
+make_z <- function(x){        #Using a function to compute z
+  (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
+}
+# download bfne data
+bfne_tib <- here::here("my_data/BFNE-II.csv")%>%
+  readr::read_csv()
+bfne_tib[[5]][1:36]
+# make a dataset
+bfne_dat = data.frame(sub_id = as.character(bfne_tib$name),
+                      Q_1 = bfne_tib[[5]][1:36],
+                      Q_2 = bfne_tib[[6]][1:36],
+                      Q_3 = bfne_tib[[7]][1:36],
+                      Q_4 = bfne_tib[[8]][1:36],
+                      Q_5 = bfne_tib[[9]][1:36],
+                      Q_6 = bfne_tib[[10]][1:36],
+                      Q_7 = bfne_tib[[11]][1:36],
+                      Q_8 = bfne_tib[[12]][1:36])
+# add a sumation column
+bfne_dat$sum=rowSums(bfne_dat[,2:9])
+bfne_dat[1,1:9]
+#---------------------------------------------------------------------- Outliers
+bfne_dat <- bfne_dat %>% 
+  dplyr::mutate(
+    bfne_z = make_z(bfne_dat$sum)
+  )
+#Using standardized scores to detect outliers  
+bfne_dat %>% 
+  dplyr::filter_at(
+    vars(bfne_z),
+    any_vars(. >= 2.58)
+  )
+```
+
+
+```{r}
+#box plot
+ggplot(bfne_dat, aes(y=sum)) + 
+  geom_boxplot(outlier.colour="red", outlier.shape=8,outlier.size=4) 
+```
+
+```{r}
+#histogram
+ggplot2::ggplot(bfne_dat, aes(sum)) +
+  geom_histogram(binwidth = 1, fill = "#56B4E9", alpha = 0.5) +
+  labs(y = "Frequency", x = "Days since first ice bucket challenge video") +
+  theme_minimal()
+```
+
+```{r}
+# data frame for regression
+# first run the regression.Rmd!
+bf_reg_dat <- data.frame(sub_id = bfne_tib$name,
+                         bfne_score = bfne_dat$sum,
+                         mb_mf_self = c((unlist(mb_index))[bfne_tib$name]-
+                                          (unlist(mf_index))[bfne_tib$name]),
+                         mb_mf_other = c((unlist(mb_index_O))[bfne_tib$name]-
+                                           (unlist(mf_index_O))[bfne_tib$name]),
+                         mb_self = index_data$mb_index[bfne_tib$name],
+                         mf_self = index_data$mf_index[bfne_tib$name],
+                         mb_other = index_data_O$mb_index[bfne_tib$name],
+                         mf_other = index_data_O$mf_index[bfne_tib$name])
+
+bf_reg_dat
+```
+
+```{r}
+# model
+bf_reg_dat <- bf_reg_dat[-c(20,23),]
+bf_lm <- lm(bf_reg_dat$mb_self ~ bf_reg_dat$bfne_score)
+summary(bf_lm)
+broom::glance(bf_lm)
+broom::tidy(bf_lm, conf.int = TRUE)
+#plot
+my_plot <- ggplot2::ggplot(bf_reg_dat, aes(bfne_score, mb_self)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "social anxietyn score", y = "MB index") +
+  theme_minimal()
+#save plot
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/bfne_mb_self.png',
+       my_plot, device = "png", width = 10, height = 7, dpi = 300)
+
+```
+
+```{r}
+#multiple regression
+
+bf_self <- data.frame(sub_id = as.character(bfne_tib$name),
+                      beneficiary = rep("self",length(bfne_tib$name)),
+                      bfne_score = bfne_dat$sum,
+                      mb_mf = c((unlist(mb_index))[bfne_tib$name]-
+                                          (unlist(mf_index))[bfne_tib$name]))
+bf_other <- data.frame(sub_id = as.character(bfne_tib$name),
+                      beneficiary = rep("other",length(bfne_tib$name)),
+                      bfne_score = bfne_dat$sum,
+                      mb_mf = c((unlist(mb_index_O))[bfne_tib$name]-
+                                          (unlist(mf_index))[bfne_tib$name]))
+#model
+bf_group <- rbind(bf_self,bf_other)
+bf_group <- bf_group[-c(20,23,56,59),]
+bf_reg <- lm( mb_mf ~ bfne_score * beneficiary , data=bf_group )
+summary(bf_reg)
+broom::glance(bf_reg)
+broom::tidy(bf_reg, conf.int = TRUE)
+# save the fit, lwr, upr values for each observation
+# these are the yhat and CI 
+# If columns for fit, upr, lwr are already present, remove them
+bf_group <- bf_group %>%
+  dplyr::select( -matches('fit'), -matches('lwr'), -matches('upr') ) %>%
+  cbind( predict(bf_reg, interval='conf') )
+
+# Make a nice plot that includes the regression line.
+ggplot(bf_group, aes(x=bfne_score, col=beneficiary, fill=beneficiary)) + 
+      geom_ribbon(aes(ymin=lwr, ymax=upr),
+                  alpha=.3) +   # how solid the layer is
+      geom_point(aes(y=mb_mf)) +
+      geom_line(aes(y=fit)) 
+#Plotting the interaction
+interactions::interact_plot(bf_reg, pred = bfne_score, modx = beneficiary) +
+  labs(x = "social anxiety score", y = "mb - mf index", fill = "beneficiary") +
+  theme_minimal()
+```
+```
+

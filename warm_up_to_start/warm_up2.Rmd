@@ -1,0 +1,105 @@
+---
+title: "warm_up_2 _ Comparing two means"
+author: "Paris.N"
+date: "10/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#libraries
+library(tidyverse)
+library(Hmisc)
+library(effectsize)
+library(WRS2)
+library(here)
+
+#data
+cloak_tib <- here::here("data/invisibility.csv") %>% readr::read_csv()
+cloak_tib <- cloak_tib %>% 
+  dplyr::mutate(
+    cloak = forcats::as_factor(cloak)
+  )
+cloak_rm_tib <- here::here("data/invisibility_rm.csv") %>% readr::read_csv()
+cloak_rm_tib <- cloak_rm_tib %>%
+  dplyr::mutate(
+    cloak = forcats::as_factor(cloak)
+  )
+
+```
+
+```{r}
+# visualizing data
+cloak_tib %>% 
+  dplyr::group_by(cloak) %>% 
+  dplyr::summarize(
+    n = n(),
+    mean = mean(mischief),
+    ci_lower = ggplot2::mean_cl_normal(mischief)$ymin,
+    ci_upper = ggplot2::mean_cl_normal(mischief)$ymax
+  )
+
+
+# violin plot
+ggplot2::ggplot(cloak_tib, aes(cloak, mischief)) +
+  geom_violin() +
+  stat_summary(fun.data = "mean_cl_normal") +
+  labs(x = "Cloak group", y = "Acts of mischief") +
+  theme_minimal()
+```
+
+```{r}
+#Comparing two independent means (1)
+ #Fitting the model (1)
+cloak_mod <- t.test(mischief ~ cloak, data = cloak_tib)
+cloak_mod
+
+#Effect size for independent means (2)
+
+#glass_delta(). This function uses only the control group standard deviation so should be used when group standard deviations are very different (or you expect your experimental manipulation to affect both the mean and the standard deviation of scores). It will use the first level of the grouping variable as the control (in this case the no cloak group). Therefore, we could execute:
+#cohens_d(). This function uses (by default) the pooled standard deviation
+#hedges_g(). This function applies a correction to Cohen’s d that is less biased for samples less than about 20.
+
+#calculate the size of the effect of having an invisibility cloak on mischief
+effectsize::cohens_d(mischief ~ cloak, data = cloak_tib)
+effectsize::hedges_g(mischief ~ cloak, data = cloak_tib)
+effectsize::glass_delta(mischief ~ cloak, data = cloak_tib)
+
+#0.65 of a standard deviation difference between the two groups in terms of their mischief making, which is a fairly substantial effect.
+
+```
+
+```{r}
+#Comparing two dependent means (1)
+ #Fitting the model (1)
+cloak_rm_mod <- t.test(mischief ~ cloak, data = cloak_tib, paired = TRUE)
+cloak_rm_mod
+
+# If the data is not ordered correctly:
+cloak_rm_mod <- cloak_rm_tib %>% 
+  dplyr::arrange(id) %>%
+  t.test(mischief ~ cloak, data = ., paired = TRUE)
+cloak_rm_mod
+
+#effect size
+effectsize::cohens_d(mischief ~ cloak, data = cloak_rm_tib)
+```
+
+```{r}
+#Robust models (3)
+cloak_rob <- WRS2::yuen(mischief ~ cloak, data = cloak_tib)
+cloak_rob
+#Based on this robust test there is not a significant difference in mischief scores across the two cloak groups, Ty(12.26)=1.48,p=.165
+
+#a bootstrap test of independent means based on 20% trimming
+cloak_bt_rob <- WRS2::yuenbt(mischief ~ cloak, data = cloak_tib, nboot = 1000, side = TRUE)
+cloak_bt_rob
+```
+
+```{r}
+
+```
+
