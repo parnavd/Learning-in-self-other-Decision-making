@@ -156,13 +156,13 @@ for (n in 1:num_sub){
   data_tib <- tibble::tibble(
                              stay_logic,    
                              outcome,         
-                             trans_logic,     
+                             sam.rew,     
                              outcome_diff     
   )
   # logistic regression
   santa_full_glm <- glm(stay_logic            #outcome 
                         ~ outcome             #predictor
-                        * trans_logic         #predictor
+                        * sam.rew         #predictor
                         * outcome_diff,       #predictor
                         data = data_tib,      #data
                         family = binomial())  #logistic regression
@@ -354,13 +354,13 @@ for (n in 1:num_sub){
   data_tib_O <- tibble::tibble(
                              stay_choice,  
                              outcome,       
-                             trans_logic,   
+                             sam.rew,   
                              outcome_diff  
   )
   # logistic regression
   santa_full_glm_O <- glm(stay_logic          #outcome 
                         ~ outcome             #predictor
-                        * trans_logic         #predictor
+                        * sam.rew         #predictor
                         * outcome_diff,       #predictor
                         data = data_tib_O,    #data
                         family = binomial())  #logistic regression
@@ -423,7 +423,7 @@ dat_tib_O %>%
 
 ```{r}
 # Associations--------------------------------------------- SELF
-my_plot <- GGally::ggscatmat(index_data_O, columns = c("accuracy", "mb_index", "mf_index" )) + 
+my_plot <- GGally::ggscatmat(index_data, columns = c("accuracy", "mb_index", "mf_index" )) + 
   theme_minimal()
 #save plot
 ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/Association_acc_other.png',
@@ -466,6 +466,11 @@ max_dat %>%
   dplyr::select(accuracy, max_rew) %>%
   correlation::correlation(method = "percentage")
 
+```
+
+```{r}
+ggplot(bfne_dat, aes(y=sum)) + 
+  geom_boxplot(outlier.colour="red", outlier.shape=8,outlier.size=4)
 ```
 
 ```{r}
