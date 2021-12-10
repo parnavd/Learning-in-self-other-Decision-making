@@ -85,7 +85,7 @@ summary(bf_lm)
 broom::glance(bf_lm)
 broom::tidy(bf_lm, conf.int = TRUE)
 #plot
-my_plot <- ggplot2::ggplot(bf_reg_dat, aes(bfne_score, mb_self)) +
+my_plot <- ggplot2::ggplot(bf_reg_dat, aes(bfne_score, mf_other)) +
   geom_point() +
   geom_smooth(method = "lm") +
   labs(x = "social anxietyn score", y = "MB index") +
@@ -124,11 +124,12 @@ bf_group <- bf_group %>%
   cbind( predict(bf_reg, interval='conf') )
 
 # Make a nice plot that includes the regression line.
-ggplot(bf_group, aes(x=bfne_score, col=beneficiary, fill=beneficiary)) + 
-      geom_ribbon(aes(ymin=lwr, ymax=upr),
-                  alpha=.3) +   # how solid the layer is
-      geom_point(aes(y=mb_mf)) +
-      geom_line(aes(y=fit)) 
+ggplot(bf_group, aes(x=bfne_score, col= forcats::fct_rev(beneficiary), fill= forcats::fct_rev(beneficiary))) + 
+  geom_ribbon(aes(ymin=lwr, ymax=upr),
+              alpha=.3) +   # how solid the layer is
+  geom_point(aes(y=mb_mf)) +
+  geom_line(aes(y=fit))+ 
+  theme_minimal() 
 #Plotting the interaction
 interactions::interact_plot(bf_reg, pred = bfne_score, modx = beneficiary) +
   labs(x = "social anxiety score", y = "mb - mf index", fill = "beneficiary") +

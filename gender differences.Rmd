@@ -1,0 +1,652 @@
+---
+title: "Gender difference"
+author: "Paris.N"
+date: "12/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#1-libraries
+library(tidyverse)
+library(broom)
+library(knitr)
+library(kableExtra)
+library(R.matlab)
+library(data.table)
+library(formattable)
+library(webshot)
+library(here)
+library(car)
+library(emmeans)
+library(lsmeans)
+library(afex)
+```
+
+```{r}
+#2- FEMALE --------------------------------------------------------------------- SELF
+#data frame for stay probability
+
+num_sub <- 18
+subject_id <-  
+  c(6,9,10,
+    12,13,15,17,20,
+    21,26,28,30,
+    32,33,34,36,37,38)
+pre_self <- "my_data/subject_"
+stay_mat_self_F <- matrix(nrow = num_sub, ncol = 4)
+stay.data.frame.self_F = data.frame(id = character(),
+                             stay_prob = double(), 
+                             stimulus = character(), 
+                             outcome_valence = character(), 
+                             beneficiary = character(),
+                             gender = character())
+for (n in 1:num_sub){
+  sub <- subject_id[n]
+  #dir self
+  dir_self <- paste(pre_self,sub,"/data.mat", sep ="") 
+  subject <- readMat(dir_self)
+  #choice self
+  ch <- subject$data[, , 1]$choice
+  ind_choice <- which(ch!=0)
+  choice <- ch[ind_choice]
+  len <- length(choice)
+  len_1 <- length(choice)-1
+  #reward self
+  rew <- subject$data[, , 1]$reward
+  reward <- rew[ind_choice]
+  new_reward <-reward[1:len]
+  #state
+  st <- subject$data[, , 1]$state1
+  state <- st[ind_choice]
+  #stay self
+  stay <- (choice[1:(length(choice)-1)]) == choice[2:len]
+  #transition
+  trans <- (state[1:(length(state)-1)]) == state[2:len]
+  #calculating stay prob self
+  a <- 0 ; b <- 0 ; c <- 0 ; d <- 0 ; w=0 ; y=0 ; x=0 ; z=0
+  for(i in 1:len_1){
+    if (reward[i] > 0.5){
+      new_reward[i] = 2 #outcome = reward : 
+      #a number between 0 to 5 showed to subject
+    } else{
+      new_reward[i] = 1 #outcome = punishment : 
+      #a number between -1 to -4 showed to subject
+    }
+    if (trans[i] == TRUE && new_reward[i] == 2){ #same_reward : 
+      #the previous options were showed to subject from which subject received 
+      #the reward in the previous trial.
+      if (stay[i] == TRUE){ # : the subject repeat the previous choice 
+        a = a + 1
+        w = w + 1
+      }
+      else{
+        a = a + 1
+      }
+    }
+    else if (trans[i] == TRUE && new_reward[i] == 1){ #same_punishment
+      if (stay[i] == TRUE){
+        b = b + 1
+        x= x + 1
+      }
+      else {
+        b = b + 1
+      }
+    }
+    else if (trans[i] == FALSE && new_reward[i] == 2){ #different_reward
+      if (stay[i] == TRUE){
+        c = c + 1
+        y = y + 1
+      }
+      else {
+        c = c + 1
+      }
+    }
+    else if (trans[i] == FALSE && new_reward[i] == 1){ #different_punishment
+      if (stay[i] == TRUE){
+        d = d + 1
+        z = z + 1
+      }
+      else {
+        d = d + 1
+      }
+    }
+  }
+  # creating data.frame
+  same_rew <- data.frame(id = as.character(sub), 
+                         stay_prob = round((w / a),digits = 3), 
+                         stimulus = "same", 
+                         outcome_valence = "reward", 
+                         beneficiary = "self",
+                         gender = "female")
+  same_punish <- data.frame(as.character(sub), 
+                            stay_prob = round((x / b),digits = 3), 
+                            stimulus = "same", 
+                            outcome_valence = "punishment", 
+                            beneficiary = "self",
+                            gender = "female")
+  same_rew[nrow(same_rew) + 1, ] <- same_punish
+  diff_rew  <- data.frame(as.character(sub), 
+                          stay_prob = round((y / c),digits = 3), 
+                          stimulus = "different", 
+                          outcome_valence = "reward", 
+                          beneficiary = "self",
+                          gender = "female")
+  same_rew[nrow(same_rew) + 1, ] <- diff_rew
+  diff_punish <- data.frame(as.character(sub), 
+                            stay_prob = round((z / d),digits = 3), 
+                            stimulus = "different", 
+                            outcome_valence = "punishment", 
+                            beneficiary = "self",
+                            gender = "female")
+  same_rew[nrow(same_rew) + 1, ] <- diff_punish
+  nRow  <-  nrow(stay.data.frame.self_F)
+  stay.data.frame.self_F[(nRow+1):(nRow+4), ] = same_rew
+  
+  #matix of result
+  stay_mat_self_F[n, 1] <- round((w / a),digits = 3)
+  stay_mat_self_F[n, 2] <- round((x / b),digits = 3)
+  stay_mat_self_F[n, 3] <- round((y / c),digits = 3)
+  stay_mat_self_F[n, 4] <- round((z / d),digits = 3)
+  
+}
+stay.data.frame.self_F
+```
+
+```{r}
+#3- FEMALE --------------------------------------------------------------------- OTHER
+# data frame for "OTHER" stay probability
+num_sub <- 18
+pre_other <- "my_data/subjectO_"
+subject_id <-  
+  c(6,9,10,
+    12,13,15,17,20,
+    21,26,28,30,
+    32,33,34,36,37,38)
+stay_mat_other_F <- matrix(nrow = num_sub, ncol = 4)
+stay.data.frame.other_F = data.frame(id = character(),
+                             stay_prob = double(), 
+                             stimulus = character(), 
+                             outcome_valence = character(), 
+                             beneficiary = character(),
+                             gender = character())
+for (n in 1:num_sub){
+  sub <- subject_id[n]
+  #dir other
+  dir_other <- paste(pre_other,sub,"/data.mat", sep ="") 
+  subject <- readMat(dir_other)
+  #choice other
+  ch <- subject$data[, , 1]$choice
+  ind_choice <- which(ch!=0)
+  choice <- ch[ind_choice]
+  len <- length(choice)
+  len_1 <- length(choice)-1
+  #reward other
+  rew <- subject$data[, , 1]$reward
+  reward <- rew[ind_choice]
+  new_reward <-reward[1:len]
+  #state
+  st <- subject$data[, , 1]$state1
+  state <- st[ind_choice]
+  #stay other
+  stay <- (choice[1:(length(choice)-1)]) == choice[2:len]
+  #transition
+  trans <- (state[1:(length(state)-1)]) == state[2:len]
+  #calculating stay prob other
+  a <- 0 ; b <- 0 ; c <- 0 ; d <- 0 ; w=0 ; y=0 ; x=0 ; z=0
+  for(i in 1:len_1){
+    if (reward[i] > 0.5){
+      new_reward[i] = 2
+    } else{
+      new_reward[i] = 1
+    }
+    if (trans[i] == TRUE && new_reward[i] == 2){ #same_reward
+      if (stay[i] == TRUE){
+        a = a + 1
+        w = w + 1
+      }
+      else{
+        a = a + 1
+      }
+    }
+    else if (trans[i] == TRUE && new_reward[i] == 1){ #same_punishment
+      if (stay[i] == TRUE){
+        b = b + 1
+        x= x + 1
+      }
+      else {
+        b = b + 1
+      }
+    }
+    else if (trans[i] == FALSE && new_reward[i] == 2){ #different_reward
+      if (stay[i] == TRUE){
+        c = c + 1
+        y = y + 1
+      }
+      else {
+        c = c + 1
+      }
+    }
+    else if (trans[i] == FALSE && new_reward[i] == 1){ #different_punishment
+      if (stay[i] == TRUE){
+        d = d + 1
+        z = z + 1
+      }
+      else {
+        d = d + 1
+      }
+    }
+  }
+  # creating data.frame
+  same_rew <- data.frame(id = as.character(sub), 
+                         stay_prob = round((w / a),digits = 3), 
+                         stimulus = "same", 
+                         outcome_valence = "reward", 
+                         beneficiary = "other",
+                         gender = "female")
+  same_punish <- data.frame(as.character(sub), 
+                            stay_prob = round((x / b),digits = 3), 
+                            stimulus = "same", 
+                            outcome_valence = "punishment", 
+                            beneficiary = "other",
+                            gender = "female")
+  same_rew[nrow(same_rew) + 1, ] <- same_punish
+  diff_rew  <- data.frame(as.character(sub), 
+                          stay_prob = round((y / c),digits = 3), 
+                          stimulus = "different", 
+                          outcome_valence = "reward", 
+                          beneficiary = "other",
+                          gender = "female")
+  same_rew[nrow(same_rew) + 1, ] <- diff_rew
+  diff_punish <- data.frame(as.character(sub), 
+                            stay_prob = round((z / d),digits = 3), 
+                            stimulus = "different", 
+                            outcome_valence = "punishment", 
+                            beneficiary = "other",
+                            gender = "female")
+  same_rew[nrow(same_rew) + 1, ] <- diff_punish
+  nRow = nrow(stay.data.frame.other_F)
+  stay.data.frame.other_F[(nRow+1):(nRow+4), ] = same_rew
+  
+  #matrix of result
+  stay_mat_other_F[n, 1] <- round((w / a),digits = 3)
+  stay_mat_other_F[n, 2] <- round((x / b),digits = 3)
+  stay_mat_other_F[n, 3] <- round((y / c),digits = 3)
+  stay_mat_other_F[n, 4] <- round((z / d),digits = 3)
+  
+}
+
+stay.data.frame.other_F
+```
+
+```{r}
+#4- MALE ----------------------------------------------------------------------- SELF
+#data frame for stay probability
+
+num_sub <- 18
+subject_id <-  
+  c(2,3,4,5,7,8,
+    11,14,16,18,19,
+    22,23,25,27,29,
+    31,35)
+pre_self <- "my_data/subject_"
+stay_mat_self_M <- matrix(nrow = num_sub, ncol = 4)
+stay.data.frame.self_M = data.frame(id = character(),
+                             stay_prob = double(), 
+                             stimulus = character(), 
+                             outcome_valence = character(), 
+                             beneficiary = character(),
+                             gender = character())
+for (n in 1:num_sub){
+  sub <- subject_id[n]
+  #dir self
+  dir_self <- paste(pre_self,sub,"/data.mat", sep ="") 
+  subject <- readMat(dir_self)
+  #choice self
+  ch <- subject$data[, , 1]$choice
+  ind_choice <- which(ch!=0)
+  choice <- ch[ind_choice]
+  len <- length(choice)
+  len_1 <- length(choice)-1
+  #reward self
+  rew <- subject$data[, , 1]$reward
+  reward <- rew[ind_choice]
+  new_reward <-reward[1:len]
+  #state
+  st <- subject$data[, , 1]$state1
+  state <- st[ind_choice]
+  #stay self
+  stay <- (choice[1:(length(choice)-1)]) == choice[2:len]
+  #transition
+  trans <- (state[1:(length(state)-1)]) == state[2:len]
+  #calculating stay prob self
+  a <- 0 ; b <- 0 ; c <- 0 ; d <- 0 ; w=0 ; y=0 ; x=0 ; z=0
+  for(i in 1:len_1){
+    if (reward[i] > 0.5){
+      new_reward[i] = 2 #outcome = reward : 
+      #a number between 0 to 5 showed to subject
+    } else{
+      new_reward[i] = 1 #outcome = punishment : 
+      #a number between -1 to -4 showed to subject
+    }
+    if (trans[i] == TRUE && new_reward[i] == 2){ #same_reward : 
+      #the previous options were showed to subject from which subject received 
+      #the reward in the previous trial.
+      if (stay[i] == TRUE){ # : the subject repeat the previous choice 
+        a = a + 1
+        w = w + 1
+      }
+      else{
+        a = a + 1
+      }
+    }
+    else if (trans[i] == TRUE && new_reward[i] == 1){ #same_punishment
+      if (stay[i] == TRUE){
+        b = b + 1
+        x= x + 1
+      }
+      else {
+        b = b + 1
+      }
+    }
+    else if (trans[i] == FALSE && new_reward[i] == 2){ #different_reward
+      if (stay[i] == TRUE){
+        c = c + 1
+        y = y + 1
+      }
+      else {
+        c = c + 1
+      }
+    }
+    else if (trans[i] == FALSE && new_reward[i] == 1){ #different_punishment
+      if (stay[i] == TRUE){
+        d = d + 1
+        z = z + 1
+      }
+      else {
+        d = d + 1
+      }
+    }
+  }
+  # creating data.frame
+  same_rew <- data.frame(id = as.character(sub), 
+                         stay_prob = round((w / a),digits = 3), 
+                         stimulus = "same", 
+                         outcome_valence = "reward", 
+                         beneficiary = "self",
+                         gender = "male")
+  same_punish <- data.frame(as.character(sub), 
+                            stay_prob = round((x / b),digits = 3), 
+                            stimulus = "same", 
+                            outcome_valence = "punishment", 
+                            beneficiary = "self",
+                            gender = "male")
+  same_rew[nrow(same_rew) + 1, ] <- same_punish
+  diff_rew  <- data.frame(as.character(sub), 
+                          stay_prob = round((y / c),digits = 3), 
+                          stimulus = "different", 
+                          outcome_valence = "reward", 
+                          beneficiary = "self",
+                          gender = "male")
+  same_rew[nrow(same_rew) + 1, ] <- diff_rew
+  diff_punish <- data.frame(as.character(sub), 
+                            stay_prob = round((z / d),digits = 3), 
+                            stimulus = "different", 
+                            outcome_valence = "punishment", 
+                            beneficiary = "self",
+                            gender = "male")
+  same_rew[nrow(same_rew) + 1, ] <- diff_punish
+  nRow  <-  nrow(stay.data.frame.self_M)
+  stay.data.frame.self_M[(nRow+1):(nRow+4), ] = same_rew
+  
+  #matix of result
+  stay_mat_self_M[n, 1] <- round((w / a),digits = 3)
+  stay_mat_self_M[n, 2] <- round((x / b),digits = 3)
+  stay_mat_self_M[n, 3] <- round((y / c),digits = 3)
+  stay_mat_self_M[n, 4] <- round((z / d),digits = 3)
+  
+}
+stay.data.frame.self_M
+```
+
+```{r}
+#5- MALE ----------------------------------------------------------------------- OTHER
+# data frame for "OTHER" stay probability
+num_sub <- 18
+pre_other <- "my_data/subjectO_"
+subject_id <-  
+  c(2,3,4,5,7,8,
+    11,14,16,18,19,
+    22,23,25,27,29,
+    31,35)
+stay_mat_other_M <- matrix(nrow = num_sub, ncol = 4)
+stay.data.frame.other_M = data.frame(id = character(),
+                             stay_prob = double(), 
+                             stimulus = character(), 
+                             outcome_valence = character(), 
+                             beneficiary = character(),
+                             gender = character())
+for (n in 1:num_sub){
+  sub <- subject_id[n]
+  #dir other
+  dir_other <- paste(pre_other,sub,"/data.mat", sep ="") 
+  subject <- readMat(dir_other)
+  #choice other
+  ch <- subject$data[, , 1]$choice
+  ind_choice <- which(ch!=0)
+  choice <- ch[ind_choice]
+  len <- length(choice)
+  len_1 <- length(choice)-1
+  #reward other
+  rew <- subject$data[, , 1]$reward
+  reward <- rew[ind_choice]
+  new_reward <-reward[1:len]
+  #state
+  st <- subject$data[, , 1]$state1
+  state <- st[ind_choice]
+  #stay other
+  stay <- (choice[1:(length(choice)-1)]) == choice[2:len]
+  #transition
+  trans <- (state[1:(length(state)-1)]) == state[2:len]
+  #calculating stay prob other
+  a <- 0 ; b <- 0 ; c <- 0 ; d <- 0 ; w=0 ; y=0 ; x=0 ; z=0
+  for(i in 1:len_1){
+    if (reward[i] > 0.5){
+      new_reward[i] = 2
+    } else{
+      new_reward[i] = 1
+    }
+    if (trans[i] == TRUE && new_reward[i] == 2){ #same_reward
+      if (stay[i] == TRUE){
+        a = a + 1
+        w = w + 1
+      }
+      else{
+        a = a + 1
+      }
+    }
+    else if (trans[i] == TRUE && new_reward[i] == 1){ #same_punishment
+      if (stay[i] == TRUE){
+        b = b + 1
+        x= x + 1
+      }
+      else {
+        b = b + 1
+      }
+    }
+    else if (trans[i] == FALSE && new_reward[i] == 2){ #different_reward
+      if (stay[i] == TRUE){
+        c = c + 1
+        y = y + 1
+      }
+      else {
+        c = c + 1
+      }
+    }
+    else if (trans[i] == FALSE && new_reward[i] == 1){ #different_punishment
+      if (stay[i] == TRUE){
+        d = d + 1
+        z = z + 1
+      }
+      else {
+        d = d + 1
+      }
+    }
+  }
+  # creating data.frame
+  same_rew <- data.frame(id = as.character(sub), 
+                         stay_prob = round((w / a),digits = 3), 
+                         stimulus = "same", 
+                         outcome_valence = "reward", 
+                         beneficiary = "other",
+                         gender = "male")
+  same_punish <- data.frame(as.character(sub), 
+                            stay_prob = round((x / b),digits = 3), 
+                            stimulus = "same", 
+                            outcome_valence = "punishment", 
+                            beneficiary = "other",
+                            gender = "male")
+  same_rew[nrow(same_rew) + 1, ] <- same_punish
+  diff_rew  <- data.frame(as.character(sub), 
+                          stay_prob = round((y / c),digits = 3), 
+                          stimulus = "different", 
+                          outcome_valence = "reward", 
+                          beneficiary = "other",
+                          gender = "male")
+  same_rew[nrow(same_rew) + 1, ] <- diff_rew
+  diff_punish <- data.frame(as.character(sub), 
+                            stay_prob = round((z / d),digits = 3), 
+                            stimulus = "different", 
+                            outcome_valence = "punishment", 
+                            beneficiary = "other",
+                            gender = "male")
+  same_rew[nrow(same_rew) + 1, ] <- diff_punish
+  nRow = nrow(stay.data.frame.other_M)
+  stay.data.frame.other_M[(nRow+1):(nRow+4), ] = same_rew
+  
+  #matrix of result
+  stay_mat_other_M[n, 1] <- round((w / a),digits = 3)
+  stay_mat_other_M[n, 2] <- round((x / b),digits = 3)
+  stay_mat_other_M[n, 3] <- round((y / c),digits = 3)
+  stay_mat_other_M[n, 4] <- round((z / d),digits = 3)
+  
+}
+
+stay.data.frame.other_M
+```
+
+```{r}
+#6- bind data
+gender_dat <- rbind(stay.data.frame.self_F,
+                    stay.data.frame.other_F,
+                    stay.data.frame.self_M,
+                    stay.data.frame.other_M)
+#convert categorical data to factorial design
+gender_dat <- gender_dat %>%
+  dplyr:: mutate(
+    stimulus = forcats::as_factor(stimulus) %>% forcats::fct_relevel
+    ("same", "different"),
+    outcome_valence = forcats::as_factor(outcome_valence)%>% forcats::fct_relevel
+    ("reward", "punishment"),
+    beneficiary = forcats::as_factor(beneficiary) %>% forcats::fct_relevel
+    ("self", "other"),
+    gender = forcats::as_factor(gender) %>% forcats::fct_relevel
+    ("female", "male")
+  )
+rew_dat = gender_dat[gender_dat$outcome_valence == "reward",]
+punish_dat = gender_dat[gender_dat$outcome_valence == "punishment",]
+```
+
+```{r}
+ggplot2::ggplot(punish_dat, aes(x = beneficiary, y = stay_prob, fill = gender)) +
+  geom_boxplot() +
+  facet_wrap(~ stimulus) + 
+  #geom_point(position=position_jitterdodge(),alpha=0.3) +
+  labs(x = "benefiaiary", y = "stay probability", fill = "gender") +
+  theme_minimal(base_size = 21)
+```
+
+```{r}
+#6-Exploring the data
+#compute the mean and a 95% confidence interval of stay probability
+gender_dat %>% 
+  dplyr::group_by(beneficiary, outcome_valence, gender) %>%
+  dplyr::summarize(
+    mean = round (mean(stay_prob), digits = 3),
+    `95% CI lower` = round(mean_cl_normal(stay_prob)$ymin, digits = 3),
+    `95% CI upper` = round(mean_cl_normal(stay_prob)$ymax, digits = 3)
+  )
+identify_outliers
+```
+
+```{r}
+#7-the model: factorial repeated measure ANOVA
+afx_fin <- data.frame(
+  id =rew_dat$id,
+  gender = rew_dat$gender,
+  beneficiary = rew_dat$beneficiary,
+  stimulus = rew_dat$stimulus,
+  stay_prob = rew_dat$stay_prob
+  
+)
+
+gender_afx <- afex::aov_4(stay_prob ~ 
+                            beneficiary *
+                            gender*stimulus + 
+                            (beneficiary*stimulus|id), 
+                          data = afx_fin)
+gender_afx
+ben_emm <- emmeans::emmeans(gender_afx, ~ beneficiary, model = "multivariate")
+ben_emm # shows us the means
+emmeans::contrast(ben_emm, method = "trt.vs.ctrl", ref = 2, adjust = "holm")
+stim_emm <- emmeans::emmeans(gender_afx, ~ stimulus, model = "multivariate")
+stim_emm
+emmeans::contrast(stim_emm, method = "trt.vs.ctrl", ref = 2, adjust = "holm")
+
+
+contrasts(rew_dat$beneficiary) <- contr.sum(2)
+contrasts(rew_dat$stimulus) <- contr.sum(2)
+contrasts(rew_dat$gender) <- contr.sum(2)
+gender_lm <- lm(stay_prob ~ gender*beneficiary*stimulus, data = afx_fin)
+car::Anova(gender_lm, type = 3)
+
+fit_all <- aov_ez("id","stay_prob", punish_dat, between = c("gender"), within=c("beneficiary"))
+
+ref <- lsmeans(fit_all,specs = c("gender","beneficiary"))
+ref_df <- as.data.frame(summary(ref))
+
+
+Model.aov.1<-aov(stay_prob ~ gender*beneficiary + Error(id), data=rew_dat)
+summary(Model.aov.1)
+afx_dat <- aov(stay_prob ~ 
+                             gender *
+                             beneficiary, 
+                           data = rew_dat,
+)
+summary(afx_dat)
+Anova(afx_dat, type = "III")
+summary.lm(afx_dat)
+
+leveneTest(rew_dat$stay_prob, rew_dat$gender, center = median)
+leveneTest(rew_dat$stay_prob, rew_dat$beneficiary, center = median)
+leveneTest(rew_dat$stay_prob, interaction(rew_dat$beneficiary, rew_dat$gender), center = median)
+
+FittedMeans.Platform<-emmeans(Model.aov.1, ~ gender)
+FittedMeans.Platform
+pairs(FittedMeans.Platform, adjust="bon")
+FittedMeans.AgebyPlatform <- emmeans(Model.aov.1, ~ gender|beneficiary) 
+FittedMeans.AgebyPlatform
+pairs(FittedMeans.AgebyPlatform)
+
+Anova(lm(stay_prob  ~ gender * beneficiary,
+         contrasts=list(gender='contr.sum', beneficiary='contr.sum'),
+         data = gender_dat[gender_dat$outcome_valence == "reward",]),
+      type='III')
+Anova(lm(stay_prob  ~ gender * beneficiary,
+      data = rew_dat))    
+
+```
+
