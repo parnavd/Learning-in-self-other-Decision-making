@@ -1,0 +1,91 @@
+---
+title: "outliers"
+author: "Paris.N"
+date: "11/30/2021"
+output: html_document
+---
+Exclusion Criterias:
+subjects were excluded if:
+1 - their accuracy was bellow than 50%.
+2 - they missed more than 20% of trials in a task
+3 - after doing task, they claimed that they didn't understand the task 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+#1- find subjects' accuracy which is less than 0.5
+# first run the regression file
+pool_acc <-c(unlist(accuracy), unlist(accuracy_O))
+acc_dat <- data.frame(
+  id = rep(1:38, 2),
+  acc =pool_acc,
+  beneficiary = as.factor(rep(c("self" , "other"), each = 38))
+)
+acc_dat
+ggplot2::ggplot(acc_dat, aes(x = beneficiary, y = acc, fill = forcats::fct_rev (beneficiary))) +
+  geom_boxplot() +
+  labs(x = "beneficiary", y = "accuracy", fill = "") +
+  theme_minimal(base_size = 21)
+```
+
+```{r}
+# 2 - find subjects with more than 25 missing trials (20%) 
+
+num_subjects <-  38
+num_trials <- 126
+preSelf <-  "my_data/subject_"
+preOther <- "my_data/subjectO_"
+index_data <- data.frame(id = integer(),
+                         missing_choices = double(),
+                         beneficiary = character()
+)
+index_data_O <- data.frame(id = integer(),
+                         missing_choices = double(),
+                         beneficiary = character()
+)
+
+for(n in 1:num_subjects){
+  miss_ch <- 0
+  miss_ch_O <- 0
+  #dir_self
+  dirSelf <-  paste(preSelf,n,"/data.mat",sep="")
+  dirOther <- paste(preOther,n,"/data.mat",sep="")
+  subject <-  readMat(dirSelf)
+  subject_O <-  readMat(dirOther)
+  #choice_self
+  ch <- subject$data[,,1]$choice
+  ch_O <- subject_O$data[,,1]$choice
+  for (z in 1: num_trials){
+    if (ch[z] == 0){
+      miss_ch = miss_ch + 1
+    }
+    if (ch_O[z] == 0){
+      miss_ch_O = miss_ch_O + 1
+    }
+  }
+  this_sub <- data.frame(id = n,
+                         missing_choices = miss_ch,
+                         beneficiary = "self")
+  this_sub_O <- data.frame(id = n,
+                         missing_choices = miss_ch_O,
+                         beneficiary = "other")
+  index_data[nrow(index_data) + 1, ] <- this_sub
+  index_data_O[nrow(index_data_O) + 1, ] <- this_sub_O
+}
+index_data
+index_data_O
+my_data <- rbind(index_data, index_data_O)
+```
+
+```{r}
+ggplot2::ggplot(my_data, aes(x = beneficiary, y = missing_choices, fill = forcats::fct_rev (beneficiary))) +
+  geom_boxplot() +
+  labs(x = "beneficiary", y = "missing_choices", fill = "") +
+  theme_minimal(base_size = 21)
+```
+

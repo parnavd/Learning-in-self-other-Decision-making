@@ -41,6 +41,8 @@ sum_reward <- list()
 accuracy <- list()
 num_choice <- list()
 performance <- list()
+acc_rew <- list()
+acc_pun <- list()
 mb_index <- list()
 mf_index <- list()
 p.value_mb <- list()
@@ -55,7 +57,8 @@ index_data <- data.frame(id = integer(),
                        mf_index = double(),
                        p.value_mf = double()
 )
-
+diff_dat <- data.frame(id = integer(), #data frame for check NA in difference data
+                         differ = double())
 #-------------------------------------------------------------------------- Loop
 for (n in 1:num_sub){
   sub <- subject_id[n]
@@ -89,6 +92,7 @@ for (n in 1:num_sub){
   trans <- vector("numeric", length = len_1)
   same <- vector("numeric", length = len_1)
   difference <- vector("numeric", length = len_1)
+  
   ind_f <- which(trans_logic == FALSE)
   ind_t <- which(trans_logic == TRUE)
   trans[ind_f] <- 1  
@@ -97,7 +101,13 @@ for (n in 1:num_sub){
   same[ind_t] <- 1                #same transition
   difference[ind_f] <- 1          #different transition
   difference[ind_t] <- 0          #same transition
-  #stay self
+  # check NA in difference data
+  this_diff <- data.frame(id = sub,
+                         differ = difference)
+  nRow = nrow(diff_dat)
+  diff_dat[(nRow+1):(nRow+nrow(this_diff)), ] = this_diff
+  
+    #stay self
   stay_logic <- as.numeric(stay)
   for (j in 1: len_1){                           
     if (stay[j] == TRUE){
@@ -112,6 +122,10 @@ for (n in 1:num_sub){
   acc <- 0
   ch_num <- 0
   max_att <- list()
+  acc_p <- 0
+  acc_r <- 0
+  num_p <- 0
+  num_r <- 0
   for(z in 1:len){
     if(first_column[z] >= second_column[z]){
       max_rew = first_column[z]
@@ -127,7 +141,19 @@ for (n in 1:num_sub){
       ch_num = ch_num + 1
     }
     max_att[z] <- max_rew
-    
+    #acc after reward $ punishment
+    if (reward[z] < 0.5){
+      num_p <- num_p + 1
+      if (max_rew == reward[z]){
+        acc_p = acc_p + 1
+      }
+    }
+    if (reward[z] >= 0.5){
+      num_r = num_r + 1
+      if (max_rew == reward[z]){
+        acc_r = acc_r + 1
+      }
+    }
     if(choice[z] == 1){#-----differences between chosen & not chosen reward prob
       rew_prob_dif[z] = 
         reward_probs[,,1][z,1] - reward_probs[,,2][z,1]
@@ -142,7 +168,8 @@ for (n in 1:num_sub){
   num_choice[n] <- ch_num
   accuracy[n] <- round(acc / ch_num, digit = 3)
   performance[n] <-  round(unlist(sum_reward[n]) / unlist(sum_max_att[n]), digits = 3)
-  
+  acc_rew[n] <- round(acc_r / num_r, digit = 3)
+  acc_pun[n] <- round(acc_p / num_r, digit = 3)
   # predictors' data frame 
   stay_choice = as.factor(which_stay)
   outcome = round(new_reward, digits = 3)
@@ -236,6 +263,8 @@ sum_reward_O <- list()
 accuracy_O <- list()
 num_choice_O <- list()
 performance_O <- list()
+acc_rew_O <- list()
+acc_pun_O <- list()
 mb_index_O <- list()
 mf_index_O <- list()
 p.value_mb_O <- list()
@@ -308,6 +337,10 @@ for (n in 1:num_sub){
   ch_num <- 0
   max_att <- list()
   ch_n <- list()
+  acc_p <- 0
+  acc_r <- 0
+  num_p <- 0
+  num_r <- 0
   for(z in 1:len){
     if(first_column[z] >= second_column[z]){
       max_rew = first_column[z]
@@ -324,6 +357,19 @@ for (n in 1:num_sub){
     }
     max_att[z] <- max_rew
     
+    #acc after reward $ punishment
+    if (reward[z] < 0.5){
+      num_p <- num_p + 1
+      if (max_rew == reward[z]){
+        acc_p = acc_p + 1
+      }
+    }
+    if (reward[z] >= 0.5){
+      num_r = num_r + 1
+      if (max_rew == reward[z]){
+        acc_r = acc_r + 1
+      }
+    }
     if(choice[z] == 1){#-----differences between chosen & not chosen reward prob
       rew_prob_dif[z] = 
         reward_probs[,,1][z,1] - reward_probs[,,2][z,1]
@@ -338,12 +384,12 @@ for (n in 1:num_sub){
   num_choice_O[n] <- ch_num
   accuracy_O[n] <- round(acc / ch_num, digit = 3)
   performance_O[n] <-  round(unlist(sum_reward_O[n]) / unlist(sum_max_att_O[n]), digits = 3)
-  
+  acc_rew_O[n] <- round(acc_r / num_r, digit = 3)
+  acc_pun_O[n] <- round(acc_p / num_r, digit = 3)
   # predictors' data frame 
   stay_choice = as.factor(which_stay)
   outcome = round(new_reward, digits = 3)
   outcome_diff = round(rew_prob_dif[1:len_1], digits = 3)
-  same_rew <- round(sam.rew, digits = 3)
   sam.rew <- round(same * new_reward, digit = 3)
   diff.rew <- round(difference * new_reward, digit = 3)
   rew.sam.diff <- round(new_reward * same * difference, digit = 3)

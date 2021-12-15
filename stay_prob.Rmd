@@ -37,10 +37,24 @@ subject_id <-
 pre_self <- "my_data/subject_"
 stay_mat_self <- matrix(nrow = num_sub, ncol = 4)
 stay.data.frame.self = data.frame(id = integer(),
-                             stay_prob = double(), 
-                             stimulus = character(), 
-                             outcome_valence = character(), 
-                             beneficiary = character())
+                                  stay_prob = double(), 
+                                  stimulus = character(), 
+                                  outcome_valence = character(), 
+                                  beneficiary = character())
+st_dat <- data.frame( id = integer(),
+                      sam_rew =  double(),
+                      st_sam_rew =  double(),
+                      w_a = double(),
+                      sam_pun = double(),
+                      st_sam_pun =  double(),
+                      x_b = double(), 
+                      dif_rew = double(),
+                      st_dif_rew =  double(),
+                      y_c = double(),
+                      dif_pun = double(),
+                      st_dif_pun = double(),
+                      z_d = double()
+)
 for (n in 1:num_sub){
   sub <- subject_id[n]
   #dir self
@@ -66,12 +80,12 @@ for (n in 1:num_sub){
   #calculating stay prob self
   a <- 0 ; b <- 0 ; c <- 0 ; d <- 0 ; w=0 ; y=0 ; x=0 ; z=0
   for(i in 1:len_1){
-    if (reward[i] > 0.5){
+    if (reward[i] >= 0.5){
       new_reward[i] = 2 #outcome = reward : 
-      #a number between 0 to 5 showed to subject
+      #a number between 1 to 5 showed to subject
     } else{
       new_reward[i] = 1 #outcome = punishment : 
-      #a number between -1 to -4 showed to subject
+      #a number between 0 to -4 showed to subject
     }
     if (trans[i] == TRUE && new_reward[i] == 2){ #same_reward : 
       #the previous options were showed to subject from which subject received 
@@ -112,6 +126,21 @@ for (n in 1:num_sub){
       }
     }
   }
+  this_st_dat <- data.frame(  id = sub,
+                             sam_rew = a,
+                             st_sam_rew = w,
+                             w_a = round((w / a),digits = 3),
+                             sam_pun = b,
+                             st_sam_pun = x,
+                             x_b = round((x / b),digits = 3),
+                             dif_rew = c,
+                             st_dif_rew = y,
+                             y_c = round((y / c),digits = 3),
+                             dif_pun = d,
+                             st_dif_pun = z,
+                             z_d = round((z / d),digits = 3)
+  )
+  st_dat[nrow(st_dat)+1,] <- this_st_dat
   # creating data.frame
   same_rew <- data.frame(id = sub, 
                          stay_prob = round((w / a),digits = 3), 
@@ -162,7 +191,6 @@ out_stay.dat.self %>%
   )
 ```
 
-
 ```{r}
 #3-data frame for "OTHER" stay probability
 
@@ -174,10 +202,24 @@ subject_id <-
     31,32,33,34,35,36,37,38)
 stay_mat_other <- matrix(nrow = num_sub, ncol = 4)
 stay.data.frame.other = data.frame(id = integer(),
-                             stay_prob = double(), 
-                             stimulus = character(), 
-                             outcome_valence = character(), 
-                             beneficiary = character())
+                                   stay_prob = double(), 
+                                   stimulus = character(), 
+                                   outcome_valence = character(), 
+                                   beneficiary = character())
+st_dat_O <- data.frame( id = integer(),
+                        sam_rew =  double(),
+                        st_sam_rew =  double(),
+                        w_a = double(),
+                        sam_pun = double(),
+                        st_sam_pun =  double(),
+                        x_b = double(), 
+                        dif_rew = double(),
+                        st_dif_rew =  double(),
+                        y_c = double(),
+                        dif_pun = double(),
+                        st_dif_pun = double(),
+                        z_d = double()
+)
 for (n in 1:num_sub){
   sub <- subject_id[n]
   #dir other
@@ -203,13 +245,17 @@ for (n in 1:num_sub){
   #calculating stay prob other
   a <- 0 ; b <- 0 ; c <- 0 ; d <- 0 ; w=0 ; y=0 ; x=0 ; z=0
   for(i in 1:len_1){
-    if (reward[i] > 0.5){
-      new_reward[i] = 2
+    if (reward[i] >= 0.5){
+      new_reward[i] = 2 #outcome = reward : 
+      #a number between 1 to 5 showed to subject
     } else{
-      new_reward[i] = 1
+      new_reward[i] = 1 #outcome = punishment : 
+      #a number between 0 to -4 showed to subject
     }
-    if (trans[i] == TRUE && new_reward[i] == 2){ #same_reward
-      if (stay[i] == TRUE){
+    if (trans[i] == TRUE && new_reward[i] == 2){ #same_reward : 
+      #the previous options were showed to subject from which subject received 
+      #the reward in the previous trial.
+      if (stay[i] == TRUE){ # : the subject repeat the previous choice 
         a = a + 1
         w = w + 1
       }
@@ -245,6 +291,21 @@ for (n in 1:num_sub){
       }
     }
   }
+  this_st_dat_O <- data.frame( id = sub,
+                             sam_rew = a,
+                             st_sam_rew = w,
+                             w_a = round((w / a),digits = 3),
+                             sam_pun = b,
+                             st_sam_pun = x,
+                             x_b = round((x / b),digits = 3),
+                             dif_rew = c,
+                             st_dif_rew = y,
+                             y_c = round((y / c),digits = 3),
+                             dif_pun = d,
+                             st_dif_pun = z,
+                             z_d = round((z / d),digits = 3)
+  )
+  st_dat_O[nrow(st_dat_O)+1,] <- this_st_dat_O
   # creating data.frame
   same_rew <- data.frame(id = sub, 
                          stay_prob = round((w / a),digits = 3), 
@@ -293,6 +354,8 @@ out_stay.dat.other %>%
     vars(stay_prob_z),
     any_vars(. >= 2.58)
   )
+
+  
 ```
 
 
@@ -323,19 +386,20 @@ stay.data.frame[stay.data.frame$outcome_valence == "punishment" & stay.data.fram
 
 ```{r}
 #boxplot
-ggplot2::ggplot(my_data, aes(x = stimulus, y = stay_prob, fill = beneficiary)) +
+my_plot <- ggplot2::ggplot(my_data, aes(x = stimulus, y = stay_prob, fill = beneficiary)) +
   geom_boxplot() +
   facet_wrap(~ outcome_valence) + 
   #geom_point(position=position_jitterdodge(),alpha=0.3) + 
   labs(x = "stimulus", y = "stay probability", fill = "beneficiary") +
-  theme_minimal(base_size = 21)
-
+  theme_minimal(base_size = 18)
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/pool_box_stay.png',
+       my_plot, device = "png", width = 12, height = 7, dpi = 300)
 ```
 
 ```{r}
 bar <- ggplot(my_data, aes(stimulus, stay_prob, fill = beneficiary))
 #plot
-bar + stat_summary(fun = mean, geom = "bar", position = "dodge") +
+my_plot <- bar + stat_summary(fun = mean, geom = "bar", position = "dodge") +
   stat_summary(fun.data = mean_cl_normal, geom = "errorbar", position = position_dodge(width = 0.9), width = 0.1) +
   facet_wrap(~ outcome_valence) +
   labs(x = "stimulus", y = "stay probability", fill = "beneficiary") + 
@@ -345,7 +409,9 @@ bar + stat_summary(fun = mean, geom = "bar", position = "dodge") +
              colour = "#2C5577",
              alpha = .2,
              size =3) + 
-  theme_minimal()
+  theme_minimal(base_size = 18)
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/pool_bar_stay.png',
+       my_plot, device = "png", width = 12, height = 7, dpi = 300)
 ```
 
 ```{r}
@@ -367,7 +433,7 @@ my_data %>%
 data_afx <- afex::aov_4(stay_prob ~ 
                           stimulus*outcome_valence*beneficiary +
                           (stimulus*outcome_valence*beneficiary | id),
-                           data = my_data)
+                        data = my_data)
 data_afx
 ano_afx <- anova(data_afx)
 
@@ -385,7 +451,7 @@ emmeans::emmeans(data_afx, ~ beneficiary, model = "multivariate")
 #plot the interaction
 my_plot <- afex::afex_plot(data_afx, "stimulus", "beneficiary", "outcome_valence", error = "within") +
   labs(x = "stimulus", y = "stay probability") +
-  theme_minimal(base_size = 21)
+  theme_minimal(base_size = 18)
 #save plot
 ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/st_interaction.png',
        my_plot, device = "png", width = 10, height = 7, dpi = 300)

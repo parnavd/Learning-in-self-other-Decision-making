@@ -1,0 +1,308 @@
+---
+title: "learning"
+author: "Paris.N"
+date: "12/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# ------------------------------------------------------------------------------ first play
+
+num_sub <- 20 # ---------------------------------------------------------------- self
+subject_id <-  
+  c(1,2,3,4,5,6,13,14,15,16,
+    21,22,25,26,27,28,33,34,35,36)
+pre_self <- "my_data/subject_"
+self_1_dat <- data.frame(id = integer(),
+                         accuracy = double(),
+                         beneficiary = character(),
+                         first_session = character())
+for (n in 1:num_sub){
+  sub <- subject_id[n]
+  #dir self
+  dir_self <- paste(pre_self, sub,"/data.mat", sep ="")
+  subject <- readMat(dir_self)
+  #choice self
+  ch <- subject$data[, , 1]$choice
+  ind_choice <- which(ch!=0)
+  choice <- ch[ind_choice]
+  len <- length(choice)
+  len_1 <- length(choice)-1
+  #reward self
+  rew <- subject$data[, , 1]$reward
+  reward <- rew[ind_choice]
+  new_reward <-reward[1:len_1]
+  #reward probs
+  reward_probs <- subject$data[, , 1]$rewardProbs
+  first_column  <-  reward_probs[ind_choice,,1][,1]
+  second_column  <-  reward_probs[ind_choice,,2][,1]
+  column <- list(first_column, second_column)
+  
+  max_rew  <-  0
+  acc <- 0
+  ch_num <- 0
+  max_att <- list()
+  for(z in 1:len){
+    if(first_column[z] >= second_column[z]){
+      max_rew = first_column[z]
+    }
+    else{
+      max_rew = second_column[z]
+    }
+    
+    if (max_rew == reward[z]){#---------------------------------------- accuracy
+      acc = acc + 1
+    }
+    if(choice[z] > 0){
+      ch_num = ch_num + 1
+    }
+    max_att[z] <- max_rew
+    
+  }
+
+  this_sub <- data.frame(id = sub,
+                         accuracy = round(acc / ch_num, digit = 3),
+                         beneficiary = "self",
+                         first_session = "self")
+  self_1_dat[nrow(self_1_dat) + 1, ] <- this_sub
+}
+```
+
+
+```{r}
+# ------------------------------------------------------------------------------ second play
+
+num_sub <- 20 # ---------------------------------------------------------------- other
+subject_id <-  
+  c(1,2,3,4,5,6,13,14,15,16,
+    21,22,25,26,27,28,33,34,35,36)
+pre_other <- "my_data/subjectO_"
+other_2_dat <- data.frame(id = integer(),
+                         accuracy = double(),
+                         beneficiary = character(),
+                         first_session = character())
+for (n in 1:num_sub){
+  sub <- subject_id[n]
+  #dir self
+  dir_other <- paste(pre_other, sub,"/data.mat", sep ="")
+  subject <- readMat(dir_other)
+  #choice self
+  ch <- subject$data[, , 1]$choice
+  ind_choice <- which(ch!=0)
+  choice <- ch[ind_choice]
+  len <- length(choice)
+  len_1 <- length(choice)-1
+  #reward self
+  rew <- subject$data[, , 1]$reward
+  reward <- rew[ind_choice]
+  new_reward <-reward[1:len_1]
+  #reward probs
+  reward_probs <- subject$data[, , 1]$rewardProbs
+  first_column  <-  reward_probs[ind_choice,,1][,1]
+  second_column  <-  reward_probs[ind_choice,,2][,1]
+  column <- list(first_column, second_column)
+  
+  max_rew  <-  0
+  acc <- 0
+  ch_num <- 0
+  max_att <- list()
+  for(z in 1:len){
+    if(first_column[z] >= second_column[z]){
+      max_rew = first_column[z]
+    }
+    else{
+      max_rew = second_column[z]
+    }
+    
+    if (max_rew == reward[z]){#---------------------------------------- accuracy
+      acc = acc + 1
+    }
+    if(choice[z] > 0){
+      ch_num = ch_num + 1
+    }
+    max_att[z] <- max_rew
+  }
+  
+  this_sub <- data.frame(id = sub,
+                         accuracy = round(acc / ch_num, digit = 3),
+                         beneficiary = "other",
+                         first_session = "self")
+  other_2_dat[nrow(other_2_dat) + 1, ] <- this_sub
+}
+```
+
+
+```{r}
+# ------------------------------------------------------------------------------ first play
+
+num_sub <- 18 # ---------------------------------------------------------------- other
+subject_id <-
+  c(7,8,9,10,11,12,17,18,19,20,
+    23,24,29,30,31,32,37,38)
+pre_other <- "my_data/subjectO_"
+other_1_dat <- data.frame(id = integer(),
+                         accuracy = double(),
+                         beneficiary = character(),
+                         first_session = character())
+for (n in 1:num_sub){
+  sub <- subject_id[n]
+  #dir self
+  dir_other <- paste(pre_other, sub,"/data.mat", sep ="")
+  subject <- readMat(dir_other)
+  #choice self
+  ch <- subject$data[, , 1]$choice
+  ind_choice <- which(ch!=0)
+  choice <- ch[ind_choice]
+  len <- length(choice)
+  len_1 <- length(choice)-1
+  #reward self
+  rew <- subject$data[, , 1]$reward
+  reward <- rew[ind_choice]
+  new_reward <-reward[1:len_1]
+  #reward probs
+  reward_probs <- subject$data[, , 1]$rewardProbs
+  first_column  <-  reward_probs[ind_choice,,1][,1]
+  second_column  <-  reward_probs[ind_choice,,2][,1]
+  column <- list(first_column, second_column)
+  
+  max_rew  <-  0
+  acc <- 0
+  ch_num <- 0
+  max_att <- list()
+  for(z in 1:len){
+    if(first_column[z] >= second_column[z]){
+      max_rew = first_column[z]
+    }
+    else{
+      max_rew = second_column[z]
+    }
+    
+    if (max_rew == reward[z]){#---------------------------------------- accuracy
+      acc = acc + 1
+    }
+    if(choice[z] > 0){
+      ch_num = ch_num + 1
+    }
+    max_att[z] <- max_rew
+  }
+  this_sub <- data.frame(id = sub,
+                         accuracy = round(acc / ch_num, digit = 3),
+                         beneficiary = "other",
+                         first_session = "other")
+  other_1_dat[nrow(other_1_dat) + 1, ] <- this_sub
+}
+```
+
+
+```{r}
+# ------------------------------------------------------------------------------ second play
+
+num_sub <- 18 # ---------------------------------------------------------------- self
+subject_id <-  
+  c(7,8,9,10,11,12,17,18,19,20,
+    23,24,29,30,31,32,37,38)
+pre_self <- "my_data/subject_"
+self_2_dat <- data.frame(id = integer(),
+                         accuracy = double(),
+                         beneficiary = character(),
+                         first_session = character())
+for (n in 1:num_sub){
+  sub <- subject_id[n]
+  #dir self
+  dir_self <- paste(pre_self, sub,"/data.mat", sep ="")
+  subject <- readMat(dir_self)
+  #choice self
+  ch <- subject$data[, , 1]$choice
+  ind_choice <- which(ch!=0)
+  choice <- ch[ind_choice]
+  len <- length(choice)
+  len_1 <- length(choice)-1
+  #reward self
+  rew <- subject$data[, , 1]$reward
+  reward <- rew[ind_choice]
+  new_reward <-reward[1:len_1]
+  #reward probs
+  reward_probs <- subject$data[, , 1]$rewardProbs
+  first_column  <-  reward_probs[ind_choice,,1][,1]
+  second_column  <-  reward_probs[ind_choice,,2][,1]
+  column <- list(first_column, second_column)
+  
+  max_rew  <-  0
+  acc <- 0
+  ch_num <- 0
+  max_att <- list()
+  for(z in 1:len){
+    if(first_column[z] >= second_column[z]){
+      max_rew = first_column[z]
+    }
+    else{
+      max_rew = second_column[z]
+    }
+    
+    if (max_rew == reward[z]){#---------------------------------------- accuracy
+      acc = acc + 1
+    }
+    if(choice[z] > 0){
+      ch_num = ch_num + 1
+    }
+    max_att[z] <- max_rew
+  }
+  
+  this_sub <- data.frame(id = sub,
+                         accuracy = round(acc / ch_num, digit = 3),
+                         beneficiary = "self",
+                         first_session = "other")
+  self_2_dat[nrow(self_2_dat) + 1, ] <- this_sub
+}
+```
+
+```{r}
+# data frame
+learn_dat <- rbind(self_1_dat,
+                   other_2_dat,
+                   self_2_dat,
+                   other_1_dat)
+fisrt_self <- data.frame(id = self_2_dat$id,
+                         first_acc = other_1_dat$accuracy,
+                         second_acc = self_2_dat$accuracy)
+learn_dat <- learn_dat %>%
+  dplyr::mutate(
+    beneficiary = forcats::as_factor(beneficiary) %>% forcats::fct_relevel
+    ("self", "other"),
+    first_session = forcats::as_factor(first_session) %>% forcats::fct_relevel
+    ("self", "other")
+  )
+learn_dat <- data.frame(id = c(self_1_dat$id, 
+                               other_1_dat$id, 
+                               self_2_dat$id),
+                        first_acc = c(self_1_dat$accuracy, 
+                                      other_1_dat$accuracy),
+                        second_acc = c(other_2_dat$accuracy, 
+                                       self_2_dat$accuracy))
+```
+
+```{r}
+#plot
+
+my_plot <- ggplot2::ggplot(fisrt_self, aes(second_acc, first_acc,)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "social anxietyn score", y = "MB index") +
+  theme_minimal()
+#save plot
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/bfne_mb_self.png',
+       my_plot, device = "png", width = 10, height = 7, dpi = 300)
+```
+
+```{r}
+#box plot
+ggplot2::ggplot(learn_dat, aes(x = first_session, y = accuracy, fill = beneficiary)) +
+  geom_boxplot() + 
+  labs(x = "first_session", y = "accuracy", fill = "beneficiary") +
+  theme_minimal(base_size = 18)
+```
+

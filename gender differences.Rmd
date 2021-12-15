@@ -39,11 +39,15 @@ subject_id <-
 pre_self <- "my_data/subject_"
 stay_mat_self_F <- matrix(nrow = num_sub, ncol = 4)
 stay.data.frame.self_F = data.frame(id = character(),
-                             stay_prob = double(), 
+                             stay_prob = double(),
                              stimulus = character(), 
                              outcome_valence = character(), 
                              beneficiary = character(),
                              gender = character())
+accuracy_dat_F <- data.frame( id = double(),
+                          accuracy = integer(),
+                          beneficiary = character(),
+                          gender = character())
 for (n in 1:num_sub){
   sub <- subject_id[n]
   #dir self
@@ -59,6 +63,12 @@ for (n in 1:num_sub){
   rew <- subject$data[, , 1]$reward
   reward <- rew[ind_choice]
   new_reward <-reward[1:len]
+  #reward probs
+  reward_probs <- subject$data[, , 1]$rewardProbs
+  first_column  <-  reward_probs[ind_choice,,1][,1]
+  second_column  <-  reward_probs[ind_choice,,2][,1]
+  column <- list(first_column, second_column)
+  rew_prob_dif <- vector("numeric", length = len_1)
   #state
   st <- subject$data[, , 1]$state1
   state <- st[ind_choice]
@@ -66,6 +76,32 @@ for (n in 1:num_sub){
   stay <- (choice[1:(length(choice)-1)]) == choice[2:len]
   #transition
   trans <- (state[1:(length(state)-1)]) == state[2:len]
+  #accuracy
+  max_rew  <- 0 
+  acc <- 0
+  ch_num <- 0
+  for(z in 1:len){
+    if(first_column[z] >= second_column[z]){
+      max_rew = first_column[z]
+    }
+    else{
+      max_rew = second_column[z]
+    }
+      
+    if (max_rew == reward[z]){
+      acc = acc + 1
+    }
+    if(choice[z] > 0){
+      ch_num = ch_num + 1
+    }
+  }
+  #dataframe
+  acc_dat_F <- data.frame( id = sub,
+                         accuracy = round(acc / ch_num, digit = 3),
+                         beneficiary = "self",
+                         gender = "female")
+  accuracy_dat_F[nrow(accuracy_dat_F) + 1,] <- acc_dat_F
+
   #calculating stay prob self
   a <- 0 ; b <- 0 ; c <- 0 ; d <- 0 ; w=0 ; y=0 ; x=0 ; z=0
   for(i in 1:len_1){
@@ -173,6 +209,10 @@ stay.data.frame.other_F = data.frame(id = character(),
                              outcome_valence = character(), 
                              beneficiary = character(),
                              gender = character())
+accuracy_dat_F_O <- data.frame( id = double(),
+                          accuracy = integer(),
+                          beneficiary = character(),
+                          gender = character())
 for (n in 1:num_sub){
   sub <- subject_id[n]
   #dir other
@@ -188,6 +228,12 @@ for (n in 1:num_sub){
   rew <- subject$data[, , 1]$reward
   reward <- rew[ind_choice]
   new_reward <-reward[1:len]
+  #reward probs
+  reward_probs <- subject$data[, , 1]$rewardProbs
+  first_column  <-  reward_probs[ind_choice,,1][,1]
+  second_column  <-  reward_probs[ind_choice,,2][,1]
+  column <- list(first_column, second_column)
+  rew_prob_dif <- vector("numeric", length = len_1)
   #state
   st <- subject$data[, , 1]$state1
   state <- st[ind_choice]
@@ -195,6 +241,31 @@ for (n in 1:num_sub){
   stay <- (choice[1:(length(choice)-1)]) == choice[2:len]
   #transition
   trans <- (state[1:(length(state)-1)]) == state[2:len]
+  #accuracy
+  max_rew  <- 0 
+  acc <- 0
+  ch_num <- 0
+  for(z in 1:len){
+    if(first_column[z] >= second_column[z]){
+      max_rew = first_column[z]
+    }
+    else{
+      max_rew = second_column[z]
+    }
+      
+    if (max_rew == reward[z]){
+      acc = acc + 1
+    }
+    if(choice[z] > 0){
+      ch_num = ch_num + 1
+    }
+  }
+  #dataframe
+  acc_dat_F_O <- data.frame( id = sub,
+                         accuracy = round(acc / ch_num, digit = 3),
+                         beneficiary = "other",
+                         gender = "female")
+  accuracy_dat_F_O[nrow(accuracy_dat_F_O) + 1,] <- acc_dat_F_O
   #calculating stay prob other
   a <- 0 ; b <- 0 ; c <- 0 ; d <- 0 ; w=0 ; y=0 ; x=0 ; z=0
   for(i in 1:len_1){
@@ -300,6 +371,10 @@ stay.data.frame.self_M = data.frame(id = character(),
                              outcome_valence = character(), 
                              beneficiary = character(),
                              gender = character())
+accuracy_dat_M <- data.frame( id = double(),
+                          accuracy = integer(),
+                          beneficiary = character(),
+                          gender = character())
 for (n in 1:num_sub){
   sub <- subject_id[n]
   #dir self
@@ -315,6 +390,12 @@ for (n in 1:num_sub){
   rew <- subject$data[, , 1]$reward
   reward <- rew[ind_choice]
   new_reward <-reward[1:len]
+  #reward probs
+  reward_probs <- subject$data[, , 1]$rewardProbs
+  first_column  <-  reward_probs[ind_choice,,1][,1]
+  second_column  <-  reward_probs[ind_choice,,2][,1]
+  column <- list(first_column, second_column)
+  rew_prob_dif <- vector("numeric", length = len_1)
   #state
   st <- subject$data[, , 1]$state1
   state <- st[ind_choice]
@@ -322,6 +403,31 @@ for (n in 1:num_sub){
   stay <- (choice[1:(length(choice)-1)]) == choice[2:len]
   #transition
   trans <- (state[1:(length(state)-1)]) == state[2:len]
+  #accuracy
+  max_rew  <- 0 
+  acc <- 0
+  ch_num <- 0
+  for(z in 1:len){
+    if(first_column[z] >= second_column[z]){
+      max_rew = first_column[z]
+    }
+    else{
+      max_rew = second_column[z]
+    }
+      
+    if (max_rew == reward[z]){
+      acc = acc + 1
+    }
+    if(choice[z] > 0){
+      ch_num = ch_num + 1
+    }
+  }
+  #dataframe
+  acc_dat_M <- data.frame( id = sub,
+                         accuracy = round(acc / ch_num, digit = 3),
+                         beneficiary = "self",
+                         gender = "male")
+  accuracy_dat_M[nrow(accuracy_dat_M) + 1,] <- acc_dat_M
   #calculating stay prob self
   a <- 0 ; b <- 0 ; c <- 0 ; d <- 0 ; w=0 ; y=0 ; x=0 ; z=0
   for(i in 1:len_1){
@@ -429,6 +535,10 @@ stay.data.frame.other_M = data.frame(id = character(),
                              outcome_valence = character(), 
                              beneficiary = character(),
                              gender = character())
+accuracy_dat_M_O <- data.frame( id = double(),
+                          accuracy = integer(),
+                          beneficiary = character(),
+                          gender = character())
 for (n in 1:num_sub){
   sub <- subject_id[n]
   #dir other
@@ -444,6 +554,12 @@ for (n in 1:num_sub){
   rew <- subject$data[, , 1]$reward
   reward <- rew[ind_choice]
   new_reward <-reward[1:len]
+  #reward probs
+  reward_probs <- subject$data[, , 1]$rewardProbs
+  first_column  <-  reward_probs[ind_choice,,1][,1]
+  second_column  <-  reward_probs[ind_choice,,2][,1]
+  column <- list(first_column, second_column)
+  rew_prob_dif <- vector("numeric", length = len_1)
   #state
   st <- subject$data[, , 1]$state1
   state <- st[ind_choice]
@@ -451,6 +567,31 @@ for (n in 1:num_sub){
   stay <- (choice[1:(length(choice)-1)]) == choice[2:len]
   #transition
   trans <- (state[1:(length(state)-1)]) == state[2:len]
+  #accuracy
+  max_rew  <- 0 
+  acc <- 0
+  ch_num <- 0
+  for(z in 1:len){
+    if(first_column[z] >= second_column[z]){
+      max_rew = first_column[z]
+    }
+    else{
+      max_rew = second_column[z]
+    }
+      
+    if (max_rew == reward[z]){
+      acc = acc + 1
+    }
+    if(choice[z] > 0){
+      ch_num = ch_num + 1
+    }
+  }
+  #dataframe
+  acc_dat_M_O <- data.frame( id = sub,
+                         accuracy = round(acc / ch_num, digit = 3),
+                         beneficiary = "other",
+                         gender = "male")
+  accuracy_dat_M_O[nrow(accuracy_dat_M_O) + 1,] <- acc_dat_M_O
   #calculating stay prob other
   a <- 0 ; b <- 0 ; c <- 0 ; d <- 0 ; w=0 ; y=0 ; x=0 ; z=0
   for(i in 1:len_1){
@@ -496,6 +637,8 @@ for (n in 1:num_sub){
       }
     }
   }
+
+  
   # creating data.frame
   same_rew <- data.frame(id = as.character(sub), 
                          stay_prob = round((w / a),digits = 3), 
@@ -539,7 +682,7 @@ stay.data.frame.other_M
 ```
 
 ```{r}
-#6- bind data
+#6- bind stay data
 gender_dat <- rbind(stay.data.frame.self_F,
                     stay.data.frame.other_F,
                     stay.data.frame.self_M,
@@ -561,12 +704,38 @@ punish_dat = gender_dat[gender_dat$outcome_valence == "punishment",]
 ```
 
 ```{r}
+#plot stay gender
 ggplot2::ggplot(punish_dat, aes(x = beneficiary, y = stay_prob, fill = gender)) +
   geom_boxplot() +
   facet_wrap(~ stimulus) + 
   #geom_point(position=position_jitterdodge(),alpha=0.3) +
   labs(x = "benefiaiary", y = "stay probability", fill = "gender") +
   theme_minimal(base_size = 21)
+```
+
+```{r}
+
+#6- bind accuracy data
+acc_gender <- rbind(accuracy_dat_F,
+                    accuracy_dat_F_O,
+                    accuracy_dat_M,
+                    accuracy_dat_M_O)
+
+#convert categorical data to factorial design
+acc_gender <- acc_gender %>%
+  dplyr:: mutate(
+    beneficiary = forcats::as_factor(beneficiary) %>% forcats::fct_relevel
+    ("self", "other"),
+    gender = forcats::as_factor(gender) %>% forcats::fct_relevel
+    ("female", "male")
+  )
+#plot gender acc
+ggplot2::ggplot(acc_gender, aes(x = beneficiary, y = accuracy, fill = gender)) +
+  geom_boxplot() +
+  #geom_point(position=position_jitterdodge(),alpha=0.3) +
+  labs(x = "benefiaiary", y = "accuracy", fill = "gender") +
+  theme_minimal(base_size = 21)
+ttest(accuracy_dat_F,accuracy_dat_M )
 ```
 
 ```{r}
@@ -595,7 +764,8 @@ afx_fin <- data.frame(
 
 gender_afx <- afex::aov_4(stay_prob ~ 
                             beneficiary *
-                            gender*stimulus + 
+                            gender *
+                            stimulus + 
                             (beneficiary*stimulus|id), 
                           data = afx_fin)
 gender_afx
