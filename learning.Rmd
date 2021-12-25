@@ -139,9 +139,9 @@ for (n in 1:num_sub){
 ```{r}
 # ------------------------------------------------------------------------------ first play
 
-num_sub <- 18 # ---------------------------------------------------------------- other
+num_sub <- 16 # ---------------------------------------------------------------- other
 subject_id <-
-  c(7,8,9,10,11,12,17,18,19,20,
+  c(7,8,10,11,12,18,19,20,
     23,24,29,30,31,32,37,38)
 pre_other <- "my_data/subjectO_"
 other_1_dat <- data.frame(id = integer(),
@@ -201,9 +201,9 @@ for (n in 1:num_sub){
 ```{r}
 # ------------------------------------------------------------------------------ second play
 
-num_sub <- 18 # ---------------------------------------------------------------- self
+num_sub <- 16 # ---------------------------------------------------------------- self
 subject_id <-  
-  c(7,8,9,10,11,12,17,18,19,20,
+  c(7,8,10,11,12,18,19,20,
     23,24,29,30,31,32,37,38)
 pre_self <- "my_data/subject_"
 self_2_dat <- data.frame(id = integer(),
@@ -266,32 +266,28 @@ learn_dat <- rbind(self_1_dat,
                    other_2_dat,
                    self_2_dat,
                    other_1_dat)
-fisrt_self <- data.frame(id = self_2_dat$id,
-                         first_acc = other_1_dat$accuracy,
-                         second_acc = self_2_dat$accuracy)
-learn_dat <- learn_dat %>%
-  dplyr::mutate(
-    beneficiary = forcats::as_factor(beneficiary) %>% forcats::fct_relevel
-    ("self", "other"),
-    first_session = forcats::as_factor(first_session) %>% forcats::fct_relevel
-    ("self", "other")
-  )
+
 learn_dat <- data.frame(id = c(self_1_dat$id, 
-                               other_1_dat$id, 
-                               self_2_dat$id),
+                               other_1_dat$id),
                         first_acc = c(self_1_dat$accuracy, 
                                       other_1_dat$accuracy),
                         second_acc = c(other_2_dat$accuracy, 
                                        self_2_dat$accuracy))
+fisrt_self <- data.frame(id = self_1_dat$id,
+                         first_acc = self_1_dat$accuracy,
+                         second_acc = other_2_dat$accuracy)
+fisrt_other <- data.frame(id = self_2_dat$id,
+                         first_acc = other_1_dat$accuracy,
+                         second_acc = self_2_dat$accuracy)
 ```
 
 ```{r}
 #plot
 
-my_plot <- ggplot2::ggplot(fisrt_self, aes(second_acc, first_acc,)) +
+my_plot <- ggplot2::ggplot(learn_dat, aes(first_acc, second_acc)) +
   geom_point() +
   geom_smooth(method = "lm") +
-  labs(x = "social anxietyn score", y = "MB index") +
+  labs(x = "first stage accuracy", y = "second stage accuracy") +
   theme_minimal()
 #save plot
 ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/bfne_mb_self.png',
@@ -300,9 +296,10 @@ ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/bfne_mb_se
 
 ```{r}
 #box plot
-ggplot2::ggplot(learn_dat, aes(x = first_session, y = accuracy, fill = beneficiary)) +
+ggplot2::ggplot(learn_dat, aes(x = first_session, y = accuracy, fill = forcats::fct_rev(beneficiary))) +
   geom_boxplot() + 
-  labs(x = "first_session", y = "accuracy", fill = "beneficiary") +
+  labs(x = "first play for", y = "accuracy", fill = " first session
+       beneficiary") +
   theme_minimal(base_size = 18)
 ```
 

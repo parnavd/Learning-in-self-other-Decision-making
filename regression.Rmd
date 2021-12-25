@@ -251,10 +251,10 @@ sum_reg[["estimate"]][6]
 ```{r}
 #3-data frame for _____"OTHER"_____ stay probability
 #------------------------------------------------------------------------------ define variables
-num_sub <- 38
+num_sub <- 36
 subject_id  <-  
-  c(1,2,3,4,5,6,7,8,9,10,
-    11,12,13,14,15,16,17,18,19,20,
+  c(1,2,3,4,5,6,7,8,10,
+    11,12,13,14,15,16,18,19,20,
     21,22,23,24,25,26,27,28,29,30,
     31,32,33,34,35,36,37,38)
 pre_other <- "my_data/subjectO_"
@@ -457,7 +457,7 @@ dat_tib_O %>%
 broom::tidy(santa_full_glm_O)
 pwr.t2n.test(n1 = , n2= , d = , sig.level = 0.05)
 pwr.t.test(n = 38, d = 0.5, sig.level = 0.05, alternative = "less")
-pwr.f2.test(u = 3, v = 34, f2 = 0.35, sig.level = 0.05)
+pwr.f2.test(u = 3, v = 32, f2 = 0.35, sig.level = 0.05)
 ```
 
 ```{r}
@@ -502,7 +502,7 @@ max_dat <- data.frame(id = c(index_data$id, index_data_O$id),
                       performance = c(index_data$performance, index_data_O$performance)
 )
 #plot
-my_plot <- ggplot2::ggplot(index_data_O, aes(mb_index, accuracy)) +
+my_plot <- ggplot2::ggplot(index_data, aes(mb_index, accuracy)) +
   geom_point() +
   geom_smooth(method = "lm") +
   labs(x = "mb index", y = "Accuracy") + #Maximum Attainable Reward
@@ -555,6 +555,7 @@ index_tib <- tibble::tibble(
                 id = rep(subject_id,2),
                 group = as.factor(rep(c("self", "other"), each = num_sub)),
                 perf = unlist(c(performance,  performance_O)),
+                acc = unlist(c(accuracy,  accuracy_O)),
                 mb_mf = c(unlist(mb_index) - unlist(mf_index), unlist(mb_index_O) - unlist(mf_index_O))
                 )
 index_tib
@@ -602,8 +603,8 @@ ggplot2::ggplot(bar_tib, aes(x = strategy, y = index, fill = forcats::fct_rev(gr
 ```{r}
 
 # R allows a shortcut for the prior definition
-m1 <- lm( perf ~ mb_mf * group, data=index_tib ) #multiple regression
-m1 <- aov(perf ~ mb_mf * group, data=index_tib)  #ANCOVA
+m1 <- lm( acc ~ mb_mf * group, data=index_tib ) #multiple regression
+m1 <- aov(acc ~ mb_mf * group, data=index_tib)  #ANCOVA
 summary(m1)
 broom::glance(m1)
 broom::tidy(m1, conf.int = TRUE)
