@@ -244,5 +244,6 @@ ggplot2::ggplot(side_dat_O, aes(pic_right_O)) +
   geom_histogram(binwidth = 5, fill = "#56B4E9", alpha = 0.5) +
   labs(y = "Frequency", x = "Days since first ice bucket challenge video") +
   theme_minimal()
+
 ```
 
