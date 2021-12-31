@@ -20,6 +20,7 @@ library(webshot)
 library(here)
 library(qqplotr)
 library(pwr)
+library(lme4)
 make_z <- function(x){        #Using a function to compute z
   (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
 }
@@ -251,10 +252,10 @@ sum_reg[["estimate"]][6]
 ```{r}
 #3-data frame for _____"OTHER"_____ stay probability
 #------------------------------------------------------------------------------ define variables
-num_sub <- 36
+num_sub <- 38
 subject_id  <-  
-  c(1,2,3,4,5,6,7,8,10,
-    11,12,13,14,15,16,18,19,20,
+  c(1,2,3,4,5,6,7,8,9,10,
+    11,12,13,14,15,16,17,18,19,20,
     21,22,23,24,25,26,27,28,29,30,
     31,32,33,34,35,36,37,38)
 pre_other <- "my_data/subjectO_"
@@ -476,9 +477,9 @@ dat_tib_O %>%
 ```{r}
 # Associations--------------------------------------------- SELF
 my_plot <- GGally::ggscatmat(index_data, columns = c("accuracy", "mb_index", "mf_index" )) + 
-  theme_minimal()
+  theme_minimal(base_size = 18)
 #save plot
-ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/Association_acc_other.png',
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/Association_acc_self.png',
        my_plot, device = "png", width = 10, height = 7, dpi = 300)
 #Pearson’s correlation 
 index_data %>%
@@ -486,9 +487,9 @@ index_data %>%
   correlation::correlation()
 # Associations--------------------------------------------- OTHER
 my_plot <- GGally::ggscatmat(index_data_O, columns = c("accuracy", "mb_index", "mf_index" )) + 
-  theme_minimal()
+  theme_minimal(base_size = 18)
 #save plot
-ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/Association_other.png',
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/Association_acc_other.png',
        my_plot, device = "png", width = 10, height = 7, dpi = 300)
 #Pearson’s correlation 
 index_data_O %>%
@@ -496,27 +497,40 @@ index_data_O %>%
   correlation::correlation()
 #pool---------------------------------------------------------------------------
 #data
-max_dat <- data.frame(id = c(index_data$id, index_data_O$id),
-                      max_rew = c(index_data$max_reward, index_data_O$max_reward),
-                      accuracy = c(index_data$accuracy, index_data_O$accuracy),
-                      performance = c(index_data$performance, index_data_O$performance)
-)
-#plot
-my_plot <- ggplot2::ggplot(index_data, aes(mb_index, accuracy)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  labs(x = "mb index", y = "Accuracy") + #Maximum Attainable Reward
-  theme_minimal()
+max_dat <-rbind(index_data, index_data_O)
+# Associations--------------------------------------------- SELF
+my_plot <- GGally::ggscatmat(max_dat, columns = c("accuracy", "mb_index", "mf_index" )) + 
+  theme_minimal(base_size = 18)
 #save plot
-ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/mb_acc_O.png',
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/Association_acc_self.png',
+       my_plot, device = "png", width = 10, height = 7, dpi = 300)
+#Pearson’s correlation 
+max_dat %>%
+  dplyr::select(accuracy, mb_index, mf_index) %>%
+  correlation::correlation()
+#plot
+my_plot <- ggplot2::ggplot(max_dat, aes(mb_index, accuracy)) +
+  geom_point(colour = "#2C5577",size = 3, alpha = 0.8) +
+  geom_smooth(method = "glm") +
+  labs(x = "mb index", y = "Accuracy") + #Maximum Attainable Reward
+  theme_minimal(base_size = 21) + 
+  theme(axis.line = element_line(colour = "black"),
+        axis.ticks.x.bottom = element_line(),
+        axis.ticks.y.left = element_line(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+#save plot
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/mb_acc.png',
        my_plot, device = "png", width = 10, height = 7, dpi = 300)
 #regression
 max_lm <- lm(accuracy ~ mb_index, data = index_data) 
 summary(max_lm)
 #Pearson’s correlation 
-max_dat %>%
-  dplyr::select(accuracy, max_rew) %>%
-  correlation::correlation(method = "percentage")
+index_data %>%
+  dplyr::select(accuracy, mf_index) %>%
+  correlation::correlation()
 
 ```
 
@@ -535,7 +549,7 @@ res_MF
 
 ```{r}
 #GLM
-perf_lm <- lm(performance ~ mb_index, data = index_data_O, na.action = na.exclude)
+perf_lm <- lm(accuracy ~ mb_index, data = index_data, na.action = na.exclude)
 #Extracting model information with summary()
 summary(perf_lm)
 #Overall fit of the model`
@@ -594,10 +608,19 @@ lines(strategy[order(strategy)], index[order(strategy)], xlim=range(strategy), y
 
 ```{r}
 #boxplot
-ggplot2::ggplot(bar_tib, aes(x = strategy, y = index, fill = forcats::fct_rev(group))) +
+my_plot <- ggplot2::ggplot(bar_tib, aes(x = strategy, y = index, fill = forcats::fct_rev(group))) +
   labs(x = "Strategy", y = "Index", fill = "Group") +
   geom_boxplot() +
-  theme_minimal()
+  theme_minimal(base_size = 21) +
+  theme(axis.line = element_line(colour = "black"),
+        axis.ticks.x.bottom = element_line(),
+        axis.ticks.y.left = element_line(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/box_mb_mf.png',
+       my_plot, device = "png", width = 10, height = 7, dpi = 300)
 ```
 
 ```{r}
@@ -621,12 +644,12 @@ index_tib <- index_tib %>%
 ggplot(index_tib, aes(x = mb_mf, col = forcats::fct_rev(group), fill = forcats::fct_rev(group))) + 
   geom_ribbon(aes(ymin = lwr, ymax = upr), alpha=.3) + 
   labs(x = "mb - mf", y = "Performance", fill = "Group") +
-  geom_point(aes(y = perf)) +
+  geom_point(aes(y = acc)) +
   geom_line(aes(y = fit)) +
   
   theme_minimal()
 
-ggplot2::ggplot(index_tib, aes(mb_mf, perf, colour = group)) +
+ggplot2::ggplot(index_tib, aes(mb_mf, acc, colour = group)) +
   geom_point() +
   geom_smooth(method = "lm", aes(fill = group), alpha = 0.1) +
   labs(x = "mb_mf", y = "performance", colour = "Group", fill = "Group") +
@@ -634,7 +657,14 @@ ggplot2::ggplot(index_tib, aes(mb_mf, perf, colour = group)) +
 #Plotting the interaction
 my_plot <- interactions::interact_plot(m1, pred = mb_mf, modx = group) +
   labs(x = "mb - mf index", y = "Performance", fill = "Group") +
-  theme_minimal()
+  theme_minimal(base_size = 18)+
+  theme(axis.line = element_line(colour = "black"),
+        axis.ticks.x.bottom = element_line(),
+        axis.ticks.y.left = element_line(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
 #save plot
 ggsave('E:/uni/statistics/Learning-in-self-other-Decision-making/plot/multi_reg_perf.png',
        my_plot, device = "png", width = 10, height = 7, dpi = 300)

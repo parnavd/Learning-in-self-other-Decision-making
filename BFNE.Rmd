@@ -21,14 +21,14 @@ bfne_tib <- here::here("my_data/BFNE-II.csv")%>%
 bfne_tib[[5]][1:36]
 # make a dataset
 bfne_dat = data.frame(sub_id = as.character(bfne_tib$name),
-                      Q_1 = bfne_tib[[5]][1:36],
-                      Q_2 = bfne_tib[[6]][1:36],
-                      Q_3 = bfne_tib[[7]][1:36],
-                      Q_4 = bfne_tib[[8]][1:36],
-                      Q_5 = bfne_tib[[9]][1:36],
-                      Q_6 = bfne_tib[[10]][1:36],
-                      Q_7 = bfne_tib[[11]][1:36],
-                      Q_8 = bfne_tib[[12]][1:36])
+                      Q_1 = bfne_tib[[5]][1:35],
+                      Q_2 = bfne_tib[[6]][1:35],
+                      Q_3 = bfne_tib[[7]][1:35],
+                      Q_4 = bfne_tib[[8]][1:35],
+                      Q_5 = bfne_tib[[9]][1:35],
+                      Q_6 = bfne_tib[[10]][1:35],
+                      Q_7 = bfne_tib[[11]][1:35],
+                      Q_8 = bfne_tib[[12]][1:35])
 # add a sumation column
 bfne_dat$sum=rowSums(bfne_dat[,2:9])
 bfne_dat[1,1:9]
@@ -56,7 +56,7 @@ ggplot(bfne_dat, aes(y=sum)) +
 #histogram
 ggplot2::ggplot(bfne_dat, aes(sum)) +
   geom_histogram(binwidth = 1, fill = "#56B4E9", alpha = 0.5) +
-  labs(y = "Frequency", x = "Days since first ice bucket challenge video") +
+  labs(y = "Frequency", x = "social anxiety score") +
   theme_minimal()
 ```
 
@@ -79,13 +79,13 @@ bf_reg_dat
 
 ```{r}
 # model
-bf_reg_dat <- bf_reg_dat[-c(20,23),]
-bf_lm <- lm(bf_reg_dat$mb_self ~ bf_reg_dat$bfne_score)
+bf_reg_dat <- bf_reg_dat[-c(9),]
+bf_lm <- lm(bf_reg_dat$mf_self ~ bf_reg_dat$bfne_score)
 summary(bf_lm)
 broom::glance(bf_lm)
 broom::tidy(bf_lm, conf.int = TRUE)
 #plot
-my_plot <- ggplot2::ggplot(bf_reg_dat, aes(bfne_score, mf_other)) +
+my_plot <- ggplot2::ggplot(bf_reg_dat, aes(bfne_score, mf_self )) +
   geom_point() +
   geom_smooth(method = "lm") +
   labs(x = "social anxietyn score", y = "MB index") +

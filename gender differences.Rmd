@@ -549,7 +549,7 @@ for (n in 1:num_sub){
   ind_choice <- which(ch!=0)
   choice <- ch[ind_choice]
   len <- length(choice)
-  len_1 <- length(choice)-1
+  len_1 <- length(choice) - 1
   #reward other
   rew <- subject$data[, , 1]$reward
   reward <- rew[ind_choice]
